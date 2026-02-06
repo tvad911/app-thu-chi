@@ -1,0 +1,70 @@
+name: thuchi_app
+description: "Ứng dụng quản lý tài chính cá nhân - Personal Finance Manager"
+publish_to: "none"
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.10.4
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  # State Management
+  flutter_riverpod: ^2.6.1
+  riverpod_annotation: ^2.6.1
+
+  # Database
+  drift: ^2.22.1
+  sqlite3_flutter_libs: ^0.5.28
+
+  # File System & Paths
+  path_provider: ^2.1.5
+  path: ^1.9.1
+
+  # Notifications
+  flutter_local_notifications: ^18.0.1
+  workmanager: ^0.5.2
+
+  # Charts
+  fl_chart: ^0.70.2
+
+  # Utilities
+  intl: ^0.20.2
+  share_plus: ^10.1.4
+  file_picker: ^8.1.7
+  image_picker: ^1.1.2
+  uuid: ^4.5.1
+
+  # UI
+  cupertino_icons: ^1.0.8
+  shared_preferences: ^2.5.4
+  google_fonts: ^8.0.1
+
+  # Storage & Sync
+  flutter_image_compress: ^2.1.0
+  flutter_secure_storage: ^9.0.0
+  minio: ^3.5.8
+
+  # Google Drive
+  google_sign_in: ^6.2.1
+  googleapis: ^13.1.0
+  extension_google_sign_in_as_googleapis_auth: ^2.0.12
+  open_file: ^3.5.11
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+  # Code Generation
+  drift_dev: ^2.22.1
+  build_runner: ^2.4.14
+  riverpod_generator: ^2.6.3
+  custom_lint: ^0.7.0
+  riverpod_lint: ^2.6.3
+
+flutter:
+  uses-material-design: true
