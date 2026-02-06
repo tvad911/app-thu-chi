@@ -22,15 +22,19 @@ class GoogleDriveProvider implements CloudStorageProvider {
   @override
   Future<bool> authenticate() async {
     try {
+      // 1. Sign In
       _currentUser = await _googleSignIn.signIn();
       if (_currentUser == null) return false;
 
+      // 2. Get Authenticated Client
+      // Note: This requires the extension package
       final httpClient = await _googleSignIn.authenticatedClient();
       if (httpClient == null) return false;
 
+      // 3. Init Drive API
       _driveApi = drive.DriveApi(httpClient);
       
-      // Initialize app folder check
+      // 4. Initialize App Folder
       await _getOrCreateAppFolder();
       
       return true;
@@ -42,12 +46,13 @@ class GoogleDriveProvider implements CloudStorageProvider {
 
   Future<String> _getOrCreateAppFolder() async {
     if (_appFolderId != null) return _appFolderId!;
+    if (_driveApi == null) throw Exception('Drive API not initialized');
     
-    // Check if exists
+    // Check if folder exists
     final q = "mimeType = 'application/vnd.google-apps.folder' and name = '$_appFolderName' and trashed = false";
     final fileList = await _driveApi!.files.list(q: q);
     
-    if (fileList.files != null && fileList.files!.isNotEmpty) {
+    if (fileList.files?.isNotEmpty == true) {
       _appFolderId = fileList.files!.first.id;
     } else {
       // Create it
@@ -63,48 +68,91 @@ class GoogleDriveProvider implements CloudStorageProvider {
 
   @override
   Future<String> uploadFile(File file, String remotePath) async {
-    if (_driveApi == null) await authenticate();
-    if (_driveApi == null) throw Exception('Drive not authenticated');
+    if (_driveApi == null) {
+      final success = await authenticate();
+      if (!success) throw Exception('Drive authentication failed');
+    }
     
     final folderId = await _getOrCreateAppFolder();
-    final fileName = p.basename(remotePath); // remotePath here is just treated as filename relative to app folder or just name
-
-    // Upload
-    final driveFile = drive.File()
-      ..name = fileName
-      ..parents = [folderId];
+    // Use basename of remotePath as the filename on Drive
+    final fileName = p.basename(remotePath); 
+    
+    // Check if file exists in the specific folder
+    final q = "'$folderId' in parents and name = '$fileName' and trashed = false";
+    final list = await _driveApi!.files.list(q: q);
     
     final media = drive.Media(file.openRead(), await file.length());
-    final result = await _driveApi!.files.create(driveFile, uploadMedia: media);
-    
-    return result.id!; // Returns Drive File ID
+
+    if (list.files?.isNotEmpty == true) {
+      // Update existing file
+      final existingId = list.files!.first.id!;
+      await _driveApi!.files.update(
+          drive.File(), 
+          existingId, 
+          uploadMedia: media
+      );
+      print('Drive: Updated file $fileName ($existingId)');
+      return existingId;
+    } else {
+      // Create new file
+      final driveFile = drive.File()
+        ..name = fileName
+        ..parents = [folderId];
+      
+      final result = await _driveApi!.files.create(driveFile, uploadMedia: media);
+      print('Drive: Created file $fileName (${result.id})');
+      return result.id!;
+    }
   }
 
   @override
   Future<File> downloadFile(String remoteId, String localPath) async {
-    if (_driveApi == null) await authenticate();
+    if (_driveApi == null) {
+        final success = await authenticate();
+        if (!success) throw Exception('Drive authentication failed');
+    }
     
     final file = File(localPath);
     if (!file.parent.existsSync()) {
       file.parent.createSync(recursive: true);
     }
 
-    final media = await _driveApi!.files.get(remoteId, downloadOptions: drive.DownloadOptions.fullMedia) as drive.Media;
-    
-    final sink = file.openWrite();
-    await media.stream.pipe(sink);
-    
-    return file;
+    try {
+      final media = await _driveApi!.files.get(remoteId, downloadOptions: drive.DownloadOptions.fullMedia) as drive.Media;
+      final sink = file.openWrite();
+      await media.stream.pipe(sink);
+      await sink.close();
+      return file;
+    } catch (e) {
+      print('Drive Download Error: $e');
+      throw Exception('Failed to download file: $e');
+    }
   }
 
   @override
   Future<void> deleteFile(String remoteId) async {
-    if (_driveApi == null) await authenticate();
-    await _driveApi!.files.delete(remoteId);
+    if (_driveApi == null) {
+        final success = await authenticate();
+        if (!success) throw Exception('Drive authentication failed');
+    }
+    try {
+      await _driveApi!.files.delete(remoteId);
+    } catch (e) {
+       print('Drive Delete Error: $e');
+       // Ignore if not found
+    }
   }
 
   @override
   Future<bool> isConnected() async {
+    // Check if sign in is silent possible
+    if (_googleSignIn.currentUser == null) {
+       try {
+         await _googleSignIn.signInSilently();
+       } catch (e) {
+         // Ignore silent sign-in errors
+       }
+    }
     return _googleSignIn.currentUser != null;
   }
   
@@ -112,15 +160,19 @@ class GoogleDriveProvider implements CloudStorageProvider {
   Future<Map<String, String>> getUserInfo() async {
     final user = _googleSignIn.currentUser;
     return {
-      'name': user?.displayName ?? 'Unknown',
-      'email': user?.email ?? 'Unknown',
+      'name': user?.displayName ?? 'Người dùng',
+      'email': user?.email ?? '',
       'photoUrl': user?.photoUrl ?? '',
     };
   }
   
   @override
   Future<void> signOut() async {
-    await _googleSignIn.signOut();
+    try {
+      await _googleSignIn.signOut();
+    } catch (e) {
+      print('SignOut error: $e');
+    }
     _driveApi = null;
     _currentUser = null;
     _appFolderId = null;

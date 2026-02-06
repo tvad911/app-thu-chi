@@ -29,12 +29,21 @@
 - **Đính kèm**: Hóa đơn, chứng từ (Ảnh/PDF) vào giao dịch.
 - **Nén ảnh tự động**: Tiết kiệm dung lượng lưu trữ.
 - **Cloud Sync**: 
-    - Hỗ trợ **Google Drive** (Cá nhân).
-    - Hỗ trợ **S3 Storage** (MinIO, AWS, Wasabi) cho người dùng nâng cao.
+    - Hỗ trợ **Google Drive** và **S3 Storage** (MinIO, AWS...).
+    - **Background Sync**: Tự động đồng bộ file ngầm định kỳ (1 giờ/lần) khi có mạng.
+    - **Smart Upload**: Chỉ upload file mới hoặc thay đổi.
 
-### 5. An toàn & Riêng tư
+### 5. Giao diện Desktop (Linux/Windows)
+- **Responsive**: Tự động chuyển đổi layout (NavigationRail 2 cột trên màn hình rộng).
+- **Phím tắt (Shortcuts)**:
+    - `Ctrl + N`: Thêm giao dịch nhanh.
+    - `Ctrl + S`: Lưu form.
+    - `Esc`: Thoát/Hủy.
+
+### 6. An toàn & Riêng tư
 - **Offline First**: Dữ liệu nằm hoàn toàn trên thiết bị của bạn.
-- **Backup/Restore**: Sao lưu dữ liệu ra file JSON hoặc đẩy lên Cloud.
+- **Backup/Restore**: Sao lưu toàn bộ dữ liệu (bao gồm cả Attachments Metadata & Bills) ra file JSON.
+- **Quyền riêng tư**: Không thu thập dữ liệu người dùng.
 
 ## 🛠 Công nghệ sử dụng
 - **Framework**: Flutter (Dart).
@@ -42,6 +51,7 @@
 - **Database**: SQLite (via Drift).
 - **Storage**: `flutter_secure_storage` (API Keys), `flutter_image_compress`.
 - **Sync**: `googleapis` (Drive), `minio` (S3).
+- **Background**: `workmanager`.
 
 ## 📸 Screenshots
 *(Đang cập nhật)*

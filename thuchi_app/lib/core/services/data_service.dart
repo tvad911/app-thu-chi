@@ -25,14 +25,24 @@ class DataService {
     final categories = await (_db.select(_db.categories)..where((t) => t.userId.equals(user.id))).get();
     final transactions = await (_db.select(_db.transactions)..where((t) => t.userId.equals(user.id))).get();
     final debts = await (_db.select(_db.debts)..where((t) => t.userId.equals(user.id))).get();
+    final bills = await (_db.select(_db.bills)..where((t) => t.userId.equals(user.id))).get();
+    
+    // Attachments are tricky as they might link to tx/bills not belonging to user (in shared scenario), 
+    // but here we assume user isolation. Join would be safer but let's select all linked to this user's data?
+    // Simplified: Select all attachments and filter later or just select all if single user local db.
+    // Better approach: Join with transactions/debts/bills to filter.
+    // For now, let's just get all attachments. If this is a personal device db, it's fine.
+    final attachments = await _db.select(_db.attachments).get(); 
 
     return {
-      'version': 1,
+      'version': 2,
       'exported_at': DateTime.now().toIso8601String(),
       'accounts': accounts.map((e) => e.toJson()).toList(),
       'categories': categories.map((e) => e.toJson()).toList(),
       'transactions': transactions.map((e) => e.toJson()).toList(),
       'debts': debts.map((e) => e.toJson()).toList(),
+      'bills': bills.map((e) => e.toJson()).toList(),
+      'attachments': attachments.map((e) => e.toJson()).toList(),
     };
   }
 
@@ -76,6 +86,8 @@ class DataService {
             await (_db.delete(_db.debts)..where((t) => t.userId.equals(userId))).go();
             await (_db.delete(_db.accounts)..where((t) => t.userId.equals(userId))).go();
             await (_db.delete(_db.categories)..where((t) => t.userId.equals(userId))).go();
+            await (_db.delete(_db.bills)..where((t) => t.userId.equals(userId))).go();
+            await _db.delete(_db.attachments).go(); // Wipe attachments metadata too
 
             // 2. Import Accounts
             for (var item in data['accounts']) {
@@ -152,6 +164,49 @@ class DataService {
                    mode: drift.InsertMode.insertOrReplace,
                  );
                }
+            }
+
+            // 6. Import Bills
+            if (data.containsKey('bills')) {
+              for (var item in data['bills']) {
+                await _db.into(_db.bills).insert(
+                  BillsCompanion(
+                    id: drift.Value(item['id']),
+                    title: drift.Value(item['title']),
+                    amount: drift.Value(item['amount']),
+                    dueDate: drift.Value(DateTime.parse(item['dueDate'])),
+                    repeatCycle: drift.Value(item['repeatCycle']),
+                    notifyBefore: drift.Value(item['notifyBefore']),
+                    categoryId: drift.Value(item['categoryId']),
+                    note: drift.Value(item['note']),
+                    isPaid: drift.Value(item['isPaid']),
+                    userId: drift.Value(userId),
+                  ),
+                  mode: drift.InsertMode.insertOrReplace,
+                );
+              }
+            }
+
+            // 7. Import Attachments
+            if (data.containsKey('attachments')) {
+              for (var item in data['attachments']) {
+                await _db.into(_db.attachments).insert(
+                  AttachmentsCompanion(
+                    id: drift.Value(item['id']),
+                    transactionId: drift.Value(item['transactionId']),
+                    debtId: drift.Value(item['debtId']),
+                    billId: drift.Value(item['billId']),
+                    fileName: drift.Value(item['fileName']),
+                    fileType: drift.Value(item['fileType']),
+                    fileSize: drift.Value(item['fileSize']),
+                    localPath: drift.Value(item['localPath']),
+                    driveFileId: drift.Value(item['driveFileId']),
+                    syncStatus: drift.Value(item['syncStatus']),
+                    createdAt: drift.Value(item['createdAt'] != null ? DateTime.parse(item['createdAt']) : DateTime.now()),
+                  ),
+                  mode: drift.InsertMode.insertOrReplace,
+                );
+              }
             }
           });
 

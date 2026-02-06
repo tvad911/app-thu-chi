@@ -11,6 +11,7 @@ import '../../../data/models/enums.dart';
 import '../../../providers/app_providers.dart';
 import '../../../providers/auth_provider.dart';
 import '../../widgets/attachment_viewer.dart';
+import '../../widgets/form_keyboard_shortcuts.dart';
 
 class TransactionFormScreen extends ConsumerStatefulWidget {
   const TransactionFormScreen({super.key});
@@ -185,22 +186,25 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen> w
     final accountsAsync = ref.watch(accountsProvider);
     final categoriesAsync = ref.watch(categoriesProvider);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Thêm giao dịch'),
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(text: 'Thu nhập'),
-            Tab(text: 'Chi tiêu'),
-            Tab(text: 'Chuyển khoản'),
-          ],
+    return FormKeyboardShortcuts(
+      onSave: _saveTransaction,
+      onCancel: () => Navigator.pop(context),
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Thêm giao dịch'),
+          bottom: TabBar(
+            controller: _tabController,
+            tabs: const [
+              Tab(text: 'Thu nhập'),
+              Tab(text: 'Chi tiêu'),
+              Tab(text: 'Chuyển khoản'),
+            ],
+          ),
         ),
-      ),
-      body: accountsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, stack) => Center(child: Text('Lỗi tải ví: $err')),
-        data: (accounts) {
+        body: accountsAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (err, stack) => Center(child: Text('Lỗi tải ví: $err')),
+          data: (accounts) {
           if (accounts.isEmpty) {
             return Center(
               child: Column(
@@ -438,6 +442,10 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen> w
         label: Text(_isSaving ? 'Đang lưu...' : 'Lưu giao dịch'),
       ),
     );
+  }
+
+      ), // Scaffold
+    ); // FormKeyboardShortcuts
   }
 
   Color _getColorForType(BuildContext context, TransactionType type) {

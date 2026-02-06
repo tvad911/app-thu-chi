@@ -25,24 +25,18 @@ class S3StorageProvider implements CloudStorageProvider {
   @override
   Future<bool> authenticate() async {
     try {
-      // Check if bucket exists to verify credentials
-      final exists = await _client.bucketExists(config.bucketName);
+      // Check if bucket exists
+      bool exists = await _client.bucketExists(config.bucketName);
       if (!exists) {
-        // Option: Create bucket if not exists? Or strictly require it?
-        // For safety, let's assume user must provide existing bucket or we try to create
-        // Usually safer to check access.
-        // If false, it might mean it doesn't exist OR no permission.
-        // Let's try to list buckets as a lighter check if specific bucket check fails permission
+        // Try creating the bucket
+        await _client.makeBucket(config.bucketName, config.region);
+        print('S3: Created bucket ${config.bucketName}');
       }
       _isAuthenticated = true;
       return true;
     } catch (e) {
       _isAuthenticated = false;
-      // If error is "NoSuchBucket", it means Auth worked but bucket missing
-      if (e.toString().contains('NoSuchBucket')) {
-         // Create logic could be here, but simpler to just return false or throw
-         return false; 
-      }
+      print('S3 Auth Error: $e');
       return false;
     }
   }

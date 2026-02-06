@@ -5,9 +5,11 @@ import 'package:workmanager/workmanager.dart';
 import 'app.dart';
 import 'core/services/notification_service.dart';
 import 'core/services/debt_notification_service.dart';
+import 'core/services/sync_service.dart';
 import 'data/database/app_database.dart';
 
 const debtCheckTask = "com.thuchi.debtCheckTask";
+const syncTask = "com.thuchi.syncTask";
 
 @pragma('vm:entry-point')
 void callbackDispatcher() {
@@ -16,6 +18,10 @@ void callbackDispatcher() {
       final db = AppDatabase();
       await DebtNotificationService.init();
       await DebtNotificationService.checkAndNotify(db);
+      await db.close();
+    } else if (task == syncTask) {
+      final db = AppDatabase();
+      await SyncService.syncPendingAttachments(db);
       await db.close();
     }
     return Future.value(true);
@@ -38,6 +44,17 @@ Future<void> main() async {
     frequency: const Duration(hours: 24),
     constraints: Constraints(
       networkType: NetworkType.not_required,
+      requiresBatteryNotLow: true,
+    ),
+  );
+
+  // Register sync task (1 hour)
+  await Workmanager().registerPeriodicTask(
+    "2",
+    syncTask,
+    frequency: const Duration(hours: 1),
+    constraints: Constraints(
+      networkType: NetworkType.connected,
       requiresBatteryNotLow: true,
     ),
   );
