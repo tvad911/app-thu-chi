@@ -17,7 +17,7 @@ dependencies:
   riverpod_annotation: ^2.6.1
 
   # Database
-  drift: ^2.22.1
+  drift: ^2.16.0
   sqlite3_flutter_libs: ^0.5.28
 
   # File System & Paths
@@ -25,22 +25,22 @@ dependencies:
   path: ^1.9.0
 
   # Notifications
-  flutter_local_notifications: ^18.0.1
+  flutter_local_notifications: ^17.0.0
   workmanager: ^0.5.2
 
   # Charts
   fl_chart: ^0.70.2
 
   # Utilities
-  intl: ^0.20.2
-  share_plus: ^10.1.4
+  intl: ^0.19.0
+  share_plus: ^9.0.0
   file_picker: ^8.1.7
   image_picker: ^1.1.2
   uuid: ^4.5.1
 
   # UI
   cupertino_icons: ^1.0.8
-  shared_preferences: ^2.5.4
+  shared_preferences: ^2.2.2
   google_fonts: ^6.1.0
 
   # Storage & Sync
@@ -60,7 +60,7 @@ dev_dependencies:
   flutter_lints: ^3.0.0
 
   # Code Generation
-  drift_dev: ^2.22.1
+  drift_dev: ^2.16.0
   build_runner: ^2.4.14
   riverpod_generator: ^2.6.3
   custom_lint: ^0.7.0
