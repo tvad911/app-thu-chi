@@ -10,12 +10,12 @@ echo "🚀 Starting Release Build Process..."
 
 # 2. Build Linux
 echo "🐧 Building Linux Release..."
-flutter build linux --release
+flutter build linux --release --no-tree-shake-icons
 echo "✅ Linux Build Complete: build/linux/x64/release/bundle/thuchi_app"
 
 # 3. Build Android APK
 echo "🤖 Building Android APK Release..."
-flutter build apk --release
+flutter build apk --release --no-tree-shake-icons
 echo "✅ Android Build Complete: build/app/outputs/flutter-apk/app-release.apk"
 
 echo "🎉 Build Process Finished Successfully!"
