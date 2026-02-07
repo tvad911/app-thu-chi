@@ -18,6 +18,13 @@ void main() {
     // In-memory database for testing
     db = AppDatabase.forTesting(NativeDatabase.memory());
     mockNotificationService = MockNotificationService();
+    
+    when(() => mockNotificationService.showInstant(
+      id: any(named: 'id'),
+      title: any(named: 'title'),
+      body: any(named: 'body'),
+    )).thenAnswer((_) async {});
+
     service = BudgetAlertService(db, mockNotificationService);
   });
 
@@ -53,8 +60,9 @@ void main() {
       final accountId = await db.into(db.accounts).insert(
         AccountsCompanion.insert(
           name: 'Cash',
-          balance: 0,
-          currency: 'VND',
+          balance: const Value(0.0),
+          currencyCode: Value('VND'),
+          type: 'cash',
           userId: userId,
         ),
       );
@@ -131,8 +139,9 @@ void main() {
       final accountId = await db.into(db.accounts).insert(
         AccountsCompanion.insert(
           name: 'Cash',
-          balance: 0,
-          currency: 'VND',
+          balance: const Value(0.0),
+          currencyCode: Value('VND'),
+          type: 'cash',
           userId: userId,
         ),
       );

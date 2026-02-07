@@ -74,8 +74,9 @@ void main() {
       final accountId = await db.into(db.accounts).insert(
         AccountsCompanion.insert(
           name: 'Acc',
-          balance: 0,
-          currency: 'VND',
+          balance: const Value(0.0),
+          currencyCode: Value('VND'),
+          type: 'cash',
           userId: userId,
         ),
       );
