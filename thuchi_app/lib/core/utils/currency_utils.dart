@@ -14,6 +14,19 @@ class CurrencyUtils {
     decimalDigits: 0,
   );
 
+  /// Format based on ISO currency code
+  static String formatCurrency(double amount, String? currencyCode) {
+    if (privacyMode) return _maskedValue;
+    if (currencyCode == null || currencyCode == 'VND') {
+      return _vndFormat.format(amount);
+    }
+    try {
+      return NumberFormat.simpleCurrency(name: currencyCode).format(amount);
+    } catch (e) {
+      return '$amount $currencyCode';
+    }
+  }
+
   /// Format amount to VND currency string
   /// e.g., 1500000 -> "1.500.000 ₫"
   static String formatVND(double amount) {

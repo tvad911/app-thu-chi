@@ -39,6 +39,11 @@ class EventRepository {
         .watch();
   }
 
+  /// Get single event by ID
+  Future<Event?> getEvent(int id) {
+    return (_db.select(_db.events)..where((e) => e.id.equals(id))).getSingleOrNull();
+  }
+
   /// Get total spending for an event
   Future<double> getEventSpending(int eventId) async {
     final result = await (_db.select(_db.transactions)
