@@ -83,6 +83,28 @@ class NotificationService {
     );
   }
   
+  /// Show an immediate notification (non-scheduled)
+  Future<void> showInstant({
+    required int id,
+    required String title,
+    required String body,
+  }) async {
+    await _notificationsPlugin.show(
+      id,
+      title,
+      body,
+      const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'budget_alerts',
+          'Cảnh báo ngân sách',
+          channelDescription: 'Thông báo khi chi tiêu vượt ngân sách',
+          importance: Importance.max,
+          priority: Priority.high,
+        ),
+      ),
+    );
+  }
+
   Future<void> cancelDebtReminder(int debtId) async {
     await _notificationsPlugin.cancel(debtId * 10 + 1);
     await _notificationsPlugin.cancel(debtId * 10 + 2);

@@ -8,7 +8,7 @@ class BillRepository {
   BillRepository(this._db);
 
   /// Get all bills for a user
-  Stream<List<Bill>> watchBills(String userId) {
+  Stream<List<Bill>> watchBills(int userId) {
     return (_db.select(_db.bills)
           ..where((b) => b.userId.equals(userId))
           ..orderBy([(b) => OrderingTerm(expression: b.dueDate)]))
@@ -16,7 +16,7 @@ class BillRepository {
   }
 
   /// Get upcoming (unpaid) bills
-  Stream<List<Bill>> watchUpcomingBills(String userId) {
+  Stream<List<Bill>> watchUpcomingBills(int userId) {
     return (_db.select(_db.bills)
           ..where((b) => b.userId.equals(userId) & b.isPaid.equals(false))
           ..orderBy([(b) => OrderingTerm(expression: b.dueDate)]))
@@ -24,7 +24,7 @@ class BillRepository {
   }
 
   /// Get paid bills
-  Stream<List<Bill>> watchPaidBills(String userId) {
+  Stream<List<Bill>> watchPaidBills(int userId) {
     return (_db.select(_db.bills)
           ..where((b) => b.userId.equals(userId) & b.isPaid.equals(true))
           ..orderBy([(b) => OrderingTerm(expression: b.dueDate, mode: OrderingMode.desc)]))
@@ -154,7 +154,7 @@ class BillRepository {
   }
 
   /// Get bills due in the next N days (for notifications)
-  Future<List<Bill>> getBillsDueSoon(String userId, int daysAhead) async {
+  Future<List<Bill>> getBillsDueSoon(int userId, int daysAhead) async {
     final now = DateTime.now();
     final futureDate = now.add(Duration(days: daysAhead));
 

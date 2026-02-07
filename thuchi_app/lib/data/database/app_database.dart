@@ -16,6 +16,8 @@ import 'tables/audit_logs_table.dart';
 import 'tables/savings_table.dart';
 import 'tables/bills_table.dart';
 import 'tables/attachments_table.dart';
+import 'tables/events_table.dart';
+import 'tables/currencies_table.dart';
 
 part 'app_database.g.dart';
 
@@ -30,7 +32,9 @@ part 'app_database.g.dart';
   AuditLogs, 
   Savings,
   Bills,
-  Attachments
+  Attachments,
+  Events,
+  Currencies
 ])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
@@ -39,7 +43,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.e);
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 8;
 
   @override
   MigrationStrategy get migration {
@@ -123,6 +127,18 @@ class AppDatabase extends _$AppDatabase {
           // Phase 12: Bills & Attachments System
           await m.createTable(bills);
           await m.createTable(attachments);
+        }
+        
+        if (from < 8) {
+          // V3: Events / Travel Mode
+          await m.createTable(events);
+          await m.addColumn(transactions, transactions.eventId);
+          // V3: Budget userId
+          await m.addColumn(budgets, budgets.userId);
+          // V3: Multi-currency
+          await m.createTable(currencies);
+          await m.addColumn(accounts, accounts.currencyCode);
+          await m.addColumn(accounts, accounts.isHidden);
         }
       },
     );

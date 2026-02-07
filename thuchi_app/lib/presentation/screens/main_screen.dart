@@ -8,9 +8,9 @@ import '../../presentation/screens/accounts/account_list_screen.dart';
 import '../../presentation/screens/reports/reports_screen.dart';
 import '../../presentation/screens/budgets/budget_screen.dart';
 import '../../presentation/screens/settings/settings_screen.dart';
-import '../../presentation/screens/settings/settings_screen.dart';
 import '../../presentation/screens/savings/savings_list_screen.dart';
-import '../../presentation/screens/transactions/transaction_form_screen.dart'; // Correct import
+import '../../presentation/screens/search/transaction_search_screen.dart';
+import '../../presentation/screens/transactions/transaction_form_screen.dart';
 import '../../providers/auth_provider.dart';
 
 class MainScreen extends ConsumerStatefulWidget {
@@ -125,6 +125,11 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                              title: const Text('ThuChi Desktop'),
                              actions: [
                                IconButton(
+                                 icon: const Icon(Icons.search),
+                                 tooltip: 'Tìm kiếm giao dịch',
+                                 onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TransactionSearchScreen())),
+                               ),
+                               IconButton(
                                   icon: const Icon(Icons.logout),
                                   onPressed: () => _handleLogout(context),
                                 )
@@ -143,6 +148,11 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                 appBar: AppBar(
                   title: const Text('ThuChi'),
                   actions: [
+                    IconButton(
+                      icon: const Icon(Icons.search),
+                      tooltip: 'Tìm kiếm giao dịch',
+                      onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TransactionSearchScreen())),
+                    ),
                      IconButton(
                       icon: const Icon(Icons.logout),
                       onPressed: () => _handleLogout(context),

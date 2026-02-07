@@ -19,6 +19,11 @@ class DateUtils {
     return _fullDateFormat.format(date);
   }
 
+  /// Alias for formatFullDate for compatibility
+  static String formatDate(DateTime date) {
+    return formatFullDate(date);
+  }
+
   /// Format to MM/yyyy (e.g., "02/2026")
   static String formatMonthYear(DateTime date) {
     return _monthYearFormat.format(date);

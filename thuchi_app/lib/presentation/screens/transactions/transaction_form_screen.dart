@@ -123,8 +123,6 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen> w
           toAccountId: drift.Value(_selectedToAccount?.id),
           userId: drift.Value(userId),
         ),
-          userId: drift.Value(userId),
-        ),
       );
 
       // Save attachments
@@ -441,11 +439,8 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen> w
             : const Icon(Icons.check),
         label: Text(_isSaving ? 'Đang lưu...' : 'Lưu giao dịch'),
       ),
+      ),
     );
-  }
-
-      ), // Scaffold
-    ); // FormKeyboardShortcuts
   }
 
   Color _getColorForType(BuildContext context, TransactionType type) {

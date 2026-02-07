@@ -4,6 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/utils/currency_utils.dart';
 import '../../../providers/app_providers.dart';
 import '../accounts/account_list_horizontal.dart';
+import '../bills/bill_list_screen.dart';
+import '../debts/debt_list_screen.dart';
+import '../events/event_list_screen.dart';
 import '../transactions/recent_transactions_list.dart';
 
 class HomeScreen extends ConsumerWidget {
@@ -38,6 +41,36 @@ class HomeScreen extends ConsumerWidget {
                   data: (balance) => _TotalBalanceCard(balance: balance),
                   loading: () => const Center(child: CircularProgressIndicator()),
                   error: (err, stack) => Text('Lỗi: $err'),
+                ),
+              ),
+            ),
+            // Quick access shortcuts
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Row(
+                  children: [
+                    _QuickAction(
+                      icon: Icons.monetization_on,
+                      label: 'Vay/Cho vay',
+                      color: Colors.orange,
+                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const DebtListScreen())),
+                    ),
+                    const SizedBox(width: 12),
+                    _QuickAction(
+                      icon: Icons.receipt_long,
+                      label: 'Hóa đơn',
+                      color: Colors.purple,
+                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const BillListScreen())),
+                    ),
+                    const SizedBox(width: 12),
+                    _QuickAction(
+                      icon: Icons.flight_takeoff,
+                      label: 'Sự kiện',
+                      color: Colors.teal,
+                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const EventListScreen())),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -107,6 +140,50 @@ class _TotalBalanceCard extends StatelessWidget {
                   ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _QuickAction extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _QuickAction({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: color.withValues(alpha: 0.3)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, color: color, size: 24),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: color),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
         ),
       ),
     );

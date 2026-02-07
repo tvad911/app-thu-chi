@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:workmanager/workmanager.dart';
@@ -28,36 +29,40 @@ void callbackDispatcher() {
   });
 }
 
+
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Initialize Workmanager
-  await Workmanager().initialize(
-    callbackDispatcher,
-    isInDebugMode: false,
-  );
+  // Workmanager primarily supports Android/iOS. Skip on Desktop/Web to avoid crash.
+  if (Platform.isAndroid || Platform.isIOS) {
+    await Workmanager().initialize(
+      callbackDispatcher,
+      isInDebugMode: false,
+    );
 
-  // Register daily task
-  await Workmanager().registerPeriodicTask(
-    "1",
-    debtCheckTask,
-    frequency: const Duration(hours: 24),
-    constraints: Constraints(
-      networkType: NetworkType.not_required,
-      requiresBatteryNotLow: true,
-    ),
-  );
+    // Register daily task
+    await Workmanager().registerPeriodicTask(
+      "1",
+      debtCheckTask,
+      frequency: const Duration(hours: 24),
+      constraints: Constraints(
+        networkType: NetworkType.not_required,
+        requiresBatteryNotLow: true,
+      ),
+    );
 
-  // Register sync task (1 hour)
-  await Workmanager().registerPeriodicTask(
-    "2",
-    syncTask,
-    frequency: const Duration(hours: 1),
-    constraints: Constraints(
-      networkType: NetworkType.connected,
-      requiresBatteryNotLow: true,
-    ),
-  );
+    // Register sync task (1 hour)
+    await Workmanager().registerPeriodicTask(
+      "2",
+      syncTask,
+      frequency: const Duration(hours: 1),
+      constraints: Constraints(
+        networkType: NetworkType.connected,
+        requiresBatteryNotLow: true,
+      ),
+    );
+  }
 
   final container = ProviderContainer();
   await container.read(notificationServiceProvider).init();

@@ -99,3 +99,24 @@ enum InterestType {
     }
   }
 }
+
+/// Repeat cycle for recurring bills
+enum RepeatCycle {
+  NONE,
+  WEEKLY,
+  MONTHLY,
+  YEARLY;
+
+  String get displayName {
+    switch (this) {
+      case RepeatCycle.NONE:
+        return 'Không lặp';
+      case RepeatCycle.WEEKLY:
+        return 'Hàng tuần';
+      case RepeatCycle.MONTHLY:
+        return 'Hàng tháng';
+      case RepeatCycle.YEARLY:
+        return 'Hàng năm';
+    }
+  }
+}

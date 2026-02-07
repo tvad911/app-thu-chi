@@ -4,6 +4,10 @@ import 'package:intl/intl.dart';
 class CurrencyUtils {
   CurrencyUtils._();
 
+  /// When true, all format methods return masked values
+  static bool privacyMode = false;
+  static const _maskedValue = '*****';
+
   static final _vndFormat = NumberFormat.currency(
     locale: 'vi_VN',
     symbol: '₫',
@@ -13,23 +17,27 @@ class CurrencyUtils {
   /// Format amount to VND currency string
   /// e.g., 1500000 -> "1.500.000 ₫"
   static String formatVND(double amount) {
+    if (privacyMode) return _maskedValue;
     return _vndFormat.format(amount);
   }
   
   /// Alias for formatVND
   static String format(double? amount) {
+    if (privacyMode) return _maskedValue;
     return _vndFormat.format(amount ?? 0);
   }
 
   /// Format amount without currency symbol
   /// e.g., 1500000 -> "1.500.000"
   static String formatNumber(double amount) {
+    if (privacyMode) return _maskedValue;
     return NumberFormat('#,###', 'vi_VN').format(amount);
   }
 
   /// Format amount in compact form
   /// e.g., 1500000 -> "1,5 Tr"
   static String formatCompact(double amount) {
+    if (privacyMode) return _maskedValue;
     if (amount.abs() >= 1000000000) {
       return '${(amount / 1000000000).toStringAsFixed(1)} Tỷ';
     } else if (amount.abs() >= 1000000) {
@@ -57,6 +65,7 @@ class CurrencyUtils {
 
   /// Format amount with sign (+ or -)
   static String formatWithSign(double amount) {
+    if (privacyMode) return _maskedValue;
     final prefix = amount >= 0 ? '+' : '';
     return '$prefix${formatVND(amount)}';
   }

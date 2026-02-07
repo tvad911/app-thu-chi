@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 import 'categories_table.dart';
+import 'users_table.dart';
 
 /// Budgets table - limits for categories
 class Budgets extends Table {
@@ -19,6 +20,9 @@ class Budgets extends Table {
   
   /// Auto renew for next month
   BoolColumn get isRecurring => boolean().withDefault(const Constant(false))();
+
+  /// Owner user ID
+  IntColumn get userId => integer().nullable().references(Users, #id)();
   
   /// Constraint to ensure one budget per category per month
   @override

@@ -18,10 +18,16 @@ class Accounts extends Table {
   /// Color for visual identification (hex format)
   TextColumn get color => text().nullable()();
 
-  /// Whether account is archived (hidden but not deleted)
+  /// Whether this account is archived
   BoolColumn get isArchived => boolean().withDefault(const Constant(false))();
 
-  /// Creation timestamp
+  /// Currency code (ISO 4217, defaults to VND)
+  TextColumn get currencyCode => text().withDefault(const Constant('VND'))();
+
+  /// Whether this account is hidden in privacy mode
+  BoolColumn get isHidden => boolean().withDefault(const Constant(false))();
+
+  /// When the account was created
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
 
   /// Last updated timestamp

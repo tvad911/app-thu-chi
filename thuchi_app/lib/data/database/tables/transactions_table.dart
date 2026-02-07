@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 import 'accounts_table.dart';
 import 'categories_table.dart';
 import 'debts_table.dart';
+import 'events_table.dart';
 
 /// Transactions table - stores all financial transactions
 import 'users_table.dart';
@@ -33,6 +34,9 @@ class Transactions extends Table {
 
   /// Linked debt ID (for debt repayment transactions)
   IntColumn get debtId => integer().nullable().references(Debts, #id)();
+
+  /// Linked event ID (for event/trip tracking)
+  IntColumn get eventId => integer().nullable().references(Events, #id)();
 
   /// Path to receipt image (local file path)
   TextColumn get imagePath => text().nullable()();

@@ -19,7 +19,7 @@ class Bills extends Table {
   
   // References
   IntColumn get categoryId => integer().nullable().references(Categories, #id)();
-  TextColumn get userId => text().references(Users, #id)();
+  IntColumn get userId => integer().references(Users, #id)();
   
   // Additional info
   TextColumn get note => text().nullable()();

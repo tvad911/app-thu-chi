@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:minio/minio.dart';
 // ignore: depend_on_referenced_packages
 import 'package:minio/models.dart'; 
@@ -43,16 +44,17 @@ class S3StorageProvider implements CloudStorageProvider {
 
   @override
   Future<String> uploadFile(File file, String remotePath) async {
-    // remotePath example: attachments/img_123.jpg
-    await _client.fPutObject(config.bucketName, remotePath, file.path);
-    return remotePath; // For S3, the ID is the path/key
+    final stream = file.openRead().map((chunk) => Uint8List.fromList(chunk));
+    await _client.putObject(config.bucketName, remotePath, stream, size: await file.length());
+    return remotePath; 
   }
 
   @override
   Future<File> downloadFile(String remoteId, String localPath) async {
-    // remoteId is the object key
-    await _client.fGetObject(config.bucketName, remoteId, localPath);
-    return File(localPath);
+    final response = await _client.getObject(config.bucketName, remoteId);
+    final file = File(localPath);
+    await response.pipe(file.openWrite());
+    return file;
   }
 
   @override

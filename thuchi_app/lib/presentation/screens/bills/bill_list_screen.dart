@@ -5,6 +5,7 @@ import '../../../core/utils/date_utils.dart' as app_date;
 import '../../../data/database/app_database.dart';
 import '../../../data/models/enums.dart';
 import '../../../providers/app_providers.dart';
+import '../../../providers/auth_provider.dart';
 import 'bill_form_screen.dart';
 
 class BillListScreen extends ConsumerStatefulWidget {
@@ -60,9 +61,13 @@ class _BillListScreenState extends ConsumerState<BillListScreen> with SingleTick
   }
 
   Widget _buildBillList({required bool isPaid}) {
-    // In a real app, this should be a proper StreamProvider
-    return FutureBuilder<List<Bill>>(
-      future: ref.read(billRepositoryProvider).getBills(isPaid: isPaid),
+    final user = ref.watch(currentUserProvider);
+    if (user == null) return const Center(child: Text('Vui lòng đăng nhập'));
+
+    return StreamBuilder<List<Bill>>(
+      stream: isPaid 
+          ? ref.read(billRepositoryProvider).watchPaidBills(user.id)
+          : ref.read(billRepositoryProvider).watchUpcomingBills(user.id),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
            return const Center(child: CircularProgressIndicator());

@@ -12,6 +12,7 @@ import '../data/repositories/audit_log_repository.dart';
 import '../data/repositories/saving_repository.dart';
 import '../data/repositories/bill_repository.dart';
 import '../data/repositories/attachment_repository.dart';
+import '../data/repositories/event_repository.dart';
 import '../core/services/file_storage_service.dart';
 
 /// Provider for the database instance
@@ -191,4 +192,18 @@ final recentAuditLogsProvider = StreamProvider<List<AuditLog>>((ref) {
 final activeSavingsProvider = StreamProvider<List<SavingWithAccount>>((ref) {
   final repo = ref.watch(savingRepositoryProvider);
   return repo.watchActiveSavings();
+});
+
+/// Provider for EventRepository
+final eventRepositoryProvider = Provider<EventRepository>((ref) {
+  final db = ref.watch(databaseProvider);
+  return EventRepository(db);
+});
+
+/// Watch active events
+final activeEventsProvider = StreamProvider<List<Event>>((ref) {
+  final user = ref.watch(currentUserProvider);
+  if (user == null) return const Stream.empty();
+  final repo = ref.watch(eventRepositoryProvider);
+  return repo.watchActiveEvents(user.id);
 });

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/utils/currency_utils.dart';
 import '../../../data/repositories/transaction_repository.dart';
 import '../../../providers/app_providers.dart';
+import 'cashbook_screen.dart';
 
 class ReportsScreen extends ConsumerStatefulWidget {
   const ReportsScreen({super.key});
@@ -37,6 +38,13 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Báo cáo'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.menu_book),
+            tooltip: 'Sổ quỹ (Cashbook)',
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CashbookScreen())),
+          ),
+        ],
       ),
       body: Column(
         children: [
