@@ -1,4 +1,5 @@
 import 'package:drift/drift.dart';
+import 'dart:convert';
 
 import '../database/app_database.dart';
 
@@ -54,7 +55,17 @@ class CategoryRepository {
 
   /// Insert new category
   Future<int> insertCategory(CategoriesCompanion category) async {
-    return _db.into(_db.categories).insert(category);
+    final id = await _db.into(_db.categories).insert(category);
+
+    await _logChange(
+      entityType: 'Category',
+      entityId: id,
+      action: 'CREATE',
+      newValue: _companionToMap(category)..['id'] = id,
+      description: 'New category: ${category.name.value} (${category.type.value})',
+    );
+
+    return id;
   }
 
   /// Seed default categories for a new user
@@ -84,13 +95,86 @@ class CategoryRepository {
 
   /// Update existing category
   Future<bool> updateCategory(Category category) async {
-    return _db.update(_db.categories).replace(category);
+    final oldCategory = await getCategoryById(category.id);
+
+    final result = await _db.update(_db.categories).replace(category);
+
+    if (result) {
+      await _logChange(
+        entityType: 'Category',
+        entityId: category.id,
+        action: 'UPDATE',
+        oldValue: oldCategory != null ? _categoryToMap(oldCategory) : null,
+        newValue: _categoryToMap(category),
+        description: 'Updated category: ${category.name}',
+      );
+    }
+
+    return result;
   }
 
   /// Delete category
   Future<int> deleteCategory(int categoryId) async {
-     // Check usage... (omitted for brevity, keep existing logic if needed or minimal)
-     return (_db.delete(_db.categories)..where((c) => c.id.equals(categoryId)))
+    final oldCategory = await getCategoryById(categoryId);
+
+    final rows = await (_db.delete(_db.categories)..where((c) => c.id.equals(categoryId)))
         .go();
+
+    if (rows > 0) {
+      await _logChange(
+        entityType: 'Category',
+        entityId: categoryId,
+        action: 'DELETE',
+        oldValue: oldCategory != null ? _categoryToMap(oldCategory) : null,
+        description: 'Deleted category: ${oldCategory?.name}',
+      );
+    }
+
+    return rows;
+  }
+
+  // -- Audit Log Helpers --
+
+  Map<String, dynamic> _categoryToMap(Category row) {
+    return {
+      'id': row.id,
+      'name': row.name,
+      'type': row.type,
+      'nature': row.nature,
+      'iconCodepoint': row.iconCodepoint,
+      'sortOrder': row.sortOrder,
+      'isDefault': row.isDefault,
+      'userId': row.userId,
+    };
+  }
+
+  Map<String, dynamic> _companionToMap(CategoriesCompanion c) {
+    return {
+      if (c.name.present) 'name': c.name.value,
+      if (c.type.present) 'type': c.type.value,
+      if (c.nature.present) 'nature': c.nature.value,
+      if (c.iconCodepoint.present) 'iconCodepoint': c.iconCodepoint.value,
+      if (c.sortOrder.present) 'sortOrder': c.sortOrder.value,
+      if (c.userId.present) 'userId': c.userId.value,
+    };
+  }
+
+  Future<void> _logChange({
+    required String entityType,
+    required int entityId,
+    required String action,
+    Map<String, dynamic>? oldValue,
+    Map<String, dynamic>? newValue,
+    String? description,
+  }) async {
+    await _db.into(_db.auditLogs).insert(AuditLogsCompanion(
+      entityType: Value(entityType),
+      entityId: Value(entityId),
+      action: Value(action),
+      oldValue: Value(oldValue != null ? jsonEncode(oldValue) : null),
+      newValue: Value(newValue != null ? jsonEncode(newValue) : null),
+      description: Value(description),
+      timestamp: Value(DateTime.now()),
+    ));
   }
 }

@@ -4,15 +4,61 @@ import '../../../core/utils/currency_utils.dart';
 import '../../../core/utils/date_utils.dart' as app_date_utils;
 import '../../../data/database/app_database.dart';
 import '../../../providers/app_providers.dart';
+import 'debt_form_screen.dart';
 
-class DebtDetailScreen extends ConsumerWidget {
+class DebtDetailScreen extends ConsumerStatefulWidget {
   final int debtId;
   const DebtDetailScreen({super.key, required this.debtId});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final debtFuture = ref.watch(debtRepositoryProvider).getDebtById(debtId);
-    final transactionsFuture = ref.watch(debtRepositoryProvider).getDebtTransactions(debtId);
+  ConsumerState<DebtDetailScreen> createState() => _DebtDetailScreenState();
+}
+
+class _DebtDetailScreenState extends ConsumerState<DebtDetailScreen> {
+  Debt? _debt;
+  List<Transaction> _transactions = [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    setState(() => _loading = true);
+    final repo = ref.read(debtRepositoryProvider);
+    final debt = await repo.getDebtById(widget.debtId);
+    final txns = await repo.getDebtTransactions(widget.debtId);
+    if (mounted) {
+      setState(() {
+        _debt = debt;
+        _transactions = txns;
+        _loading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Chi tiết khoản nợ')),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    final debt = _debt;
+    if (debt == null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Chi tiết khoản nợ')),
+        body: const Center(child: Text('Không tìm thấy khoản nợ')),
+      );
+    }
+
+    final isLend = debt.type == 'lend';
+    final remaining = debt.remainingAmount;
+    final progress = debt.totalAmount > 0 ? (debt.totalAmount - remaining) / debt.totalAmount : 0.0;
 
     return Scaffold(
       appBar: AppBar(
@@ -20,57 +66,44 @@ class DebtDetailScreen extends ConsumerWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.edit),
-            onPressed: () {
-              // Future implementation: edit debt
+            tooltip: 'Chỉnh sửa',
+            onPressed: () async {
+              final result = await Navigator.push<bool>(
+                context,
+                MaterialPageRoute(builder: (_) => DebtFormScreen(existingDebt: debt)),
+              );
+              if (result == true) _loadData();
             },
           ),
         ],
       ),
-      body: FutureBuilder(
-        future: Future.wait([debtFuture, transactionsFuture]),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError || snapshot.data == null) {
-            return const Center(child: Text('Lỗi tải dữ liệu'));
-          }
-
-          final debt = snapshot.data![0] as Debt?;
-          final transactions = snapshot.data![1] as List<Transaction>;
-
-          if (debt == null) return const Center(child: Text('Không tìm thấy khoản nợ'));
-
-          final isLend = debt.type == 'lend';
-          final remaining = debt.remainingAmount;
-          final progress = debt.totalAmount > 0 ? (debt.totalAmount - remaining) / debt.totalAmount : 0.0;
-
-          return ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              _buildHeader(debt, isLend, remaining, progress),
-              const SizedBox(height: 24),
-              _buildInfoSection(debt),
-              const SizedBox(height: 24),
-              const Text(
-                'Lịch sử giao dịch',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              if (transactions.isEmpty)
-                const Center(child: Padding(
-                  padding: EdgeInsets.all(20.0),
-                  child: Text('Chưa có giao dịch nào'),
-                ))
-              else
-                ...transactions.map((t) => _buildTransactionItem(t)),
-            ],
-          );
-        },
+      body: RefreshIndicator(
+        onRefresh: _loadData,
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            _buildHeader(debt, isLend, remaining, progress),
+            const SizedBox(height: 24),
+            _buildInfoSection(debt),
+            const SizedBox(height: 24),
+            const Text(
+              'Lịch sử giao dịch',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            if (_transactions.isEmpty)
+              const Center(child: Padding(
+                padding: EdgeInsets.all(20.0),
+                child: Text('Chưa có giao dịch nào'),
+              ))
+            else
+              ..._transactions.map((t) => _buildTransactionItem(t)),
+          ],
+        ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showRepaymentDialog(context, ref, debtId),
-        label: const Text('Thêm trả nợ'),
+      floatingActionButton: debt.isFinished ? null : FloatingActionButton.extended(
+        onPressed: () => _showRepaymentDialog(context, debt),
+        label: Text(isLend ? 'Nhận trả nợ' : 'Trả nợ'),
         icon: const Icon(Icons.add),
       ),
     );
@@ -85,7 +118,7 @@ class DebtDetailScreen extends ConsumerWidget {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
           gradient: LinearGradient(
-            colors: isLend 
+            colors: isLend
               ? [Colors.green.shade600, Colors.green.shade400]
               : [Colors.red.shade600, Colors.red.shade400],
             begin: Alignment.topLeft,
@@ -94,6 +127,34 @@ class DebtDetailScreen extends ConsumerWidget {
         ),
         child: Column(
           children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.25),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        isLend ? Icons.arrow_upward : Icons.arrow_downward,
+                        size: 14,
+                        color: Colors.white,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        isLend ? 'CHO VAY' : 'ĐI VAY',
+                        style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
             Text(
               debt.person,
               style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
@@ -108,6 +169,16 @@ class DebtDetailScreen extends ConsumerWidget {
               CurrencyUtils.formatVND(remaining),
               style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold),
             ),
+            if (debt.isFinished)
+              Container(
+                margin: const EdgeInsets.only(top: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Text('ĐÃ TẤT TOÁN', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              ),
             const SizedBox(height: 16),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -166,7 +237,7 @@ class DebtDetailScreen extends ConsumerWidget {
           const SizedBox(width: 12),
           Text(label, style: TextStyle(color: Colors.grey[600])),
           const Spacer(),
-          Text(value, style: const TextStyle(fontWeight: FontWeight.bold)),
+          Flexible(child: Text(value, style: const TextStyle(fontWeight: FontWeight.bold), textAlign: TextAlign.end)),
         ],
       ),
     );
@@ -175,7 +246,7 @@ class DebtDetailScreen extends ConsumerWidget {
   Widget _buildTransactionItem(Transaction t) {
     final isTransfer = t.type == 'transfer';
     final isIncome = t.type == 'income';
-    
+
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
@@ -199,17 +270,115 @@ class DebtDetailScreen extends ConsumerWidget {
     );
   }
 
-  void _showRepaymentDialog(BuildContext context, WidgetRef ref, int debtId) async {
-    final debt = await ref.read(debtRepositoryProvider).getDebtById(debtId);
-    if (debt == null) return;
-    
-    // Using the same dialog logic as in list screen or redirect to it
-    // For brevity, I'll assume we extract this to a common component or just call showPaymentDialog
-    // Since I'm in a pure widget, I'll just trigger the logic (this would ideally be shared)
-    // For now, prompt them back to the list screen or implement quickly:
-    
-    // (In real app, move _showPaymentDialog from list_screen to a separate utility or use Navigation)
-    // Since I can't easily call a private method of another screen's state, I'll finish this screen for now.
-    // The FAB in list screen already works.
+  void _showRepaymentDialog(BuildContext context, Debt debt) {
+    final principalController = TextEditingController(text: debt.remainingAmount.toStringAsFixed(0));
+    final interestController = TextEditingController(text: '0');
+    final noteController = TextEditingController();
+    int? selectedAccountId;
+    int? selectedInterestCategoryId;
+
+    final isLend = debt.type == 'lend';
+
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => Consumer(
+        builder: (dialogCtx, dialogRef, _) {
+          final accountsAsync = dialogRef.watch(accountsProvider);
+          final categoriesAsync = debt.type == 'borrow'
+              ? dialogRef.watch(expenseCategoriesProvider)
+              : dialogRef.watch(incomeCategoriesProvider);
+
+          return AlertDialog(
+            title: Text(isLend ? 'Nhận trả nợ từ ${debt.person}' : 'Trả nợ cho ${debt.person}'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: principalController,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      labelText: isLend ? 'Tiền gốc nhận lại' : 'Tiền gốc trả',
+                      suffixText: 'đ',
+                      helperText: 'Còn lại: ${CurrencyUtils.formatVND(debt.remainingAmount)}',
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: interestController,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      labelText: isLend ? 'Tiền lãi nhận' : 'Tiền lãi trả',
+                      suffixText: 'đ',
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  accountsAsync.when(
+                    data: (accounts) {
+                      final validAccounts = accounts.where((a) => a.type != 'SAVING_DEPOSIT').toList();
+                      if (selectedAccountId == null && validAccounts.isNotEmpty) {
+                        selectedAccountId = validAccounts.first.id;
+                      }
+                      return DropdownButtonFormField<int>(
+                        value: selectedAccountId,
+                        decoration: InputDecoration(labelText: isLend ? 'Nhận vào ví' : 'Trả từ ví'),
+                        items: validAccounts.map((a) => DropdownMenuItem(
+                          value: a.id,
+                          child: Text('${a.name} (${CurrencyUtils.formatVND(a.balance)})'),
+                        )).toList(),
+                        onChanged: (val) => selectedAccountId = val,
+                      );
+                    },
+                    loading: () => const LinearProgressIndicator(),
+                    error: (_, __) => const Text('Lỗi ví'),
+                  ),
+                  const SizedBox(height: 16),
+                  categoriesAsync.when(
+                    data: (categories) {
+                      return DropdownButtonFormField<int>(
+                        value: selectedInterestCategoryId,
+                        decoration: const InputDecoration(labelText: 'Hạng mục tiền lãi'),
+                        items: categories.map((c) => DropdownMenuItem(value: c.id, child: Text(c.name))).toList(),
+                        onChanged: (val) => selectedInterestCategoryId = val,
+                      );
+                    },
+                    loading: () => const SizedBox.shrink(),
+                    error: (_, __) => const SizedBox.shrink(),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: noteController,
+                    decoration: const InputDecoration(labelText: 'Ghi chú'),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(dialogCtx), child: const Text('Hủy')),
+              FilledButton(
+                onPressed: () async {
+                  final principal = double.tryParse(principalController.text) ?? 0;
+                  final interest = double.tryParse(interestController.text) ?? 0;
+
+                  if ((principal > 0 || interest > 0) && selectedAccountId != null) {
+                    await dialogRef.read(debtRepositoryProvider).addRepayment(
+                      debtId: debt.id,
+                      principal: principal,
+                      interest: interest,
+                      accountId: selectedAccountId!,
+                      categoryId: selectedInterestCategoryId,
+                      note: noteController.text.isNotEmpty ? noteController.text : null,
+                    );
+                    if (dialogCtx.mounted) Navigator.pop(dialogCtx);
+                    _loadData(); // Refresh detail screen
+                  }
+                },
+                child: const Text('Xác nhận'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
   }
 }

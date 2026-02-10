@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/services.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:googleapis/drive/v3.dart' as drive;
 import 'package:extension_google_sign_in_as_googleapis_auth/extension_google_sign_in_as_googleapis_auth.dart';
@@ -22,12 +23,16 @@ class GoogleDriveProvider implements CloudStorageProvider {
   @override
   Future<bool> authenticate() async {
     try {
+      // Platform guard: google_sign_in only supports Android/iOS/Web
+      if (Platform.isLinux || Platform.isWindows || Platform.isMacOS) {
+        throw UnsupportedError('Google Sign-In không hỗ trợ trên ${Platform.operatingSystem}. Vui lòng sử dụng S3 Storage.');
+      }
+
       // 1. Sign In
       _currentUser = await _googleSignIn.signIn();
       if (_currentUser == null) return false;
 
       // 2. Get Authenticated Client
-      // Note: This requires the extension package
       final httpClient = await _googleSignIn.authenticatedClient();
       if (httpClient == null) return false;
 
@@ -38,6 +43,11 @@ class GoogleDriveProvider implements CloudStorageProvider {
       await _getOrCreateAppFolder();
       
       return true;
+    } on PlatformException catch (e) {
+      print('Drive Auth PlatformException: ${e.code} - ${e.message}');
+      rethrow;
+    } on UnsupportedError {
+      rethrow;
     } catch (e) {
       print('Drive Auth Error: $e');
       return false;

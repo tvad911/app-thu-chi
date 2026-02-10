@@ -174,18 +174,18 @@ final budgetsForMonthProvider = StreamProvider.family<List<BudgetWithCategory>, 
 });
 
 /// Get monthly category stats
-final monthlyCategoryStatsProvider = FutureProvider.family<List<CategoryStat>, (DateTime, String)>((ref, args) {
+final monthlyCategoryStatsProvider = FutureProvider.family<List<CategoryStat>, (DateTime, String, bool)>((ref, args) {
   final user = ref.watch(currentUserProvider);
   if (user == null) return [];
-  final (month, type) = args;
+  final (month, type, excludeEvents) = args;
   final repository = ref.watch(transactionRepositoryProvider);
-  return repository.getCategoryStats(user.id, month, type);
+  return repository.getCategoryStats(user.id, month, type, excludeEvents: excludeEvents);
 });
 
 /// Watch recent audit logs
 final recentAuditLogsProvider = StreamProvider<List<AuditLog>>((ref) {
   final repo = ref.watch(auditLogRepositoryProvider);
-  return repo.watchRecentLogs(50);
+  return repo.watchRecentLogs(limit: 50);
 });
 
 /// Watch active savings
@@ -206,4 +206,28 @@ final activeEventsProvider = StreamProvider<List<Event>>((ref) {
   if (user == null) return const Stream.empty();
   final repo = ref.watch(eventRepositoryProvider);
   return repo.watchActiveEvents(user.id);
+});
+
+/// Get monthly totals (income, expense, balance)
+final monthlyTotalsProvider = FutureProvider.family<Map<String, double>, (DateTime, bool)>((ref, args) {
+  final user = ref.watch(currentUserProvider);
+  if (user == null) return {'income': 0, 'expense': 0, 'balance': 0};
+  final (month, excludeEvents) = args;
+  return ref.watch(transactionRepositoryProvider).getMonthlyTotals(user.id, month, excludeEvents: excludeEvents);
+});
+
+/// Get daily totals for bar chart
+final dailyTotalsProvider = FutureProvider.family<List<Map<String, dynamic>>, (DateTime, bool)>((ref, args) {
+  final user = ref.watch(currentUserProvider);
+  if (user == null) return [];
+  final (month, excludeEvents) = args;
+  return ref.watch(transactionRepositoryProvider).getDailyTotals(user.id, month, excludeEvents: excludeEvents);
+});
+
+/// Get top transactions in a month
+final topTransactionsProvider = FutureProvider.family<List<Transaction>, (DateTime, bool)>((ref, args) {
+  final user = ref.watch(currentUserProvider);
+  if (user == null) return [];
+  final (month, excludeEvents) = args;
+  return ref.watch(transactionRepositoryProvider).getTopTransactions(user.id, month, excludeEvents: excludeEvents);
 });

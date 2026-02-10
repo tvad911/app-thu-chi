@@ -1,4 +1,6 @@
 import 'package:drift/drift.dart';
+import 'dart:convert';
+
 import '../database/app_database.dart';
 
 /// Data class for event with its total spending
@@ -85,23 +87,121 @@ class EventRepository {
   }
 
   /// Create a new event
-  Future<int> createEvent(EventsCompanion event) {
-    return _db.into(_db.events).insert(event);
+  Future<int> createEvent(EventsCompanion event) async {
+    final id = await _db.into(_db.events).insert(event);
+
+    await _logChange(
+      entityType: 'Event',
+      entityId: id,
+      action: 'CREATE',
+      newValue: _companionToMap(event)..['id'] = id,
+      description: 'New event: ${event.name.value}',
+    );
+
+    return id;
   }
 
   /// Update an event
-  Future<bool> updateEvent(int id, EventsCompanion event) {
-    return (_db.update(_db.events)..where((e) => e.id.equals(id))).write(event).then((rows) => rows > 0);
+  Future<bool> updateEvent(int id, EventsCompanion event) async {
+    final oldEvent = await getEvent(id);
+    final rows = await (_db.update(_db.events)..where((e) => e.id.equals(id))).write(event);
+
+    if (rows > 0) {
+      final updatedEvent = await getEvent(id);
+      await _logChange(
+        entityType: 'Event',
+        entityId: id,
+        action: 'UPDATE',
+        oldValue: oldEvent != null ? _eventToMap(oldEvent) : null,
+        newValue: updatedEvent != null ? _eventToMap(updatedEvent) : null,
+        description: 'Updated event: ${oldEvent?.name}',
+      );
+    }
+
+    return rows > 0;
   }
 
   /// Delete an event
-  Future<int> deleteEvent(int id) {
-    return (_db.delete(_db.events)..where((e) => e.id.equals(id))).go();
+  Future<int> deleteEvent(int id) async {
+    final oldEvent = await getEvent(id);
+    final rows = await (_db.delete(_db.events)..where((e) => e.id.equals(id))).go();
+
+    if (rows > 0) {
+      await _logChange(
+        entityType: 'Event',
+        entityId: id,
+        action: 'DELETE',
+        oldValue: oldEvent != null ? _eventToMap(oldEvent) : null,
+        description: 'Deleted event: ${oldEvent?.name}',
+      );
+    }
+
+    return rows;
   }
 
   /// Mark event as finished
   Future<void> finishEvent(int id) async {
     await (_db.update(_db.events)..where((e) => e.id.equals(id)))
         .write(const EventsCompanion(isFinished: Value(true)));
+
+    await _logChange(
+      entityType: 'Event',
+      entityId: id,
+      action: 'FINISH',
+      newValue: {'isFinished': true},
+      description: 'Finished event #$id',
+    );
+  }
+
+  /// Get all transactions belonging to an event
+  Future<List<Transaction>> getTransactionsForEvent(int eventId) async {
+    return (_db.select(_db.transactions)
+          ..where((t) => t.eventId.equals(eventId))
+          ..orderBy([(t) => OrderingTerm.desc(t.date)]))
+        .get();
+  }
+
+  // -- Audit Log Helpers --
+
+  Map<String, dynamic> _eventToMap(Event row) {
+    return {
+      'id': row.id,
+      'name': row.name,
+      'budget': row.budget,
+      'startDate': row.startDate.toIso8601String(),
+      'endDate': row.endDate?.toIso8601String(),
+      'isFinished': row.isFinished,
+      'userId': row.userId,
+    };
+  }
+
+  Map<String, dynamic> _companionToMap(EventsCompanion c) {
+    return {
+      if (c.name.present) 'name': c.name.value,
+      if (c.budget.present) 'budget': c.budget.value,
+      if (c.startDate.present) 'startDate': c.startDate.value.toIso8601String(),
+      if (c.endDate.present) 'endDate': c.endDate.value?.toIso8601String(),
+      if (c.isFinished.present) 'isFinished': c.isFinished.value,
+      if (c.userId.present) 'userId': c.userId.value,
+    };
+  }
+
+  Future<void> _logChange({
+    required String entityType,
+    required int entityId,
+    required String action,
+    Map<String, dynamic>? oldValue,
+    Map<String, dynamic>? newValue,
+    String? description,
+  }) async {
+    await _db.into(_db.auditLogs).insert(AuditLogsCompanion(
+      entityType: Value(entityType),
+      entityId: Value(entityId),
+      action: Value(action),
+      oldValue: Value(oldValue != null ? jsonEncode(oldValue) : null),
+      newValue: Value(newValue != null ? jsonEncode(newValue) : null),
+      description: Value(description),
+      timestamp: Value(DateTime.now()),
+    ));
   }
 }

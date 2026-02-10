@@ -1,4 +1,6 @@
 import 'package:drift/drift.dart';
+import 'dart:convert';
+
 import '../database/app_database.dart';
 
 /// Repository for Bill operations
@@ -37,13 +39,25 @@ class BillRepository {
   }
 
   /// Create a new bill
-  Future<int> createBill(BillsCompanion bill) {
-    return _db.into(_db.bills).insert(bill);
+  Future<int> createBill(BillsCompanion bill) async {
+    final id = await _db.into(_db.bills).insert(bill);
+
+    await _logChange(
+      entityType: 'Bill',
+      entityId: id,
+      action: 'CREATE',
+      newValue: _companionToMap(bill)..['id'] = id,
+      description: 'New bill: ${bill.title.value}',
+    );
+
+    return id;
   }
 
   /// Update a bill
-  Future<void> updateBill(Bill bill) {
-    return (_db.update(_db.bills)..where((b) => b.id.equals(bill.id))).write(
+  Future<void> updateBill(Bill bill) async {
+    final oldBill = await getBillById(bill.id);
+
+    await (_db.update(_db.bills)..where((b) => b.id.equals(bill.id))).write(
       BillsCompanion(
         title: Value(bill.title),
         amount: Value(bill.amount),
@@ -56,11 +70,51 @@ class BillRepository {
         updatedAt: Value(DateTime.now()),
       ),
     );
+
+    await _logChange(
+      entityType: 'Bill',
+      entityId: bill.id,
+      action: 'UPDATE',
+      oldValue: oldBill != null ? _billToMap(oldBill) : null,
+      newValue: _billToMap(bill),
+      description: 'Updated bill: ${bill.title}',
+    );
   }
 
   /// Delete a bill
-  Future<void> deleteBill(int id) {
-    return (_db.delete(_db.bills)..where((b) => b.id.equals(id))).go();
+  Future<void> deleteBill(int id) async {
+    final oldBill = await getBillById(id);
+
+    await (_db.delete(_db.bills)..where((b) => b.id.equals(id))).go();
+
+    await _logChange(
+      entityType: 'Bill',
+      entityId: id,
+      action: 'DELETE',
+      oldValue: oldBill != null ? _billToMap(oldBill) : null,
+      description: 'Deleted bill: ${oldBill?.title}',
+    );
+  }
+
+  /// Toggle bill paid status
+  Future<void> toggleBillPaid(int id) async {
+    final bill = await getBillById(id);
+    if (bill == null) return;
+    await (_db.update(_db.bills)..where((b) => b.id.equals(id))).write(
+      BillsCompanion(
+        isPaid: Value(!bill.isPaid),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
+
+    await _logChange(
+      entityType: 'Bill',
+      entityId: id,
+      action: 'UPDATE',
+      oldValue: {'isPaid': bill.isPaid},
+      newValue: {'isPaid': !bill.isPaid},
+      description: 'Toggled bill paid: ${bill.title} -> ${!bill.isPaid}',
+    );
   }
 
   /// Pay a bill - creates transaction and generates next bill if recurring
@@ -115,6 +169,16 @@ class BillRepository {
           note: Value(bill.note),
         ));
       }
+
+      // 5. Audit log
+      await _logChange(
+        entityType: 'Bill',
+        entityId: billId,
+        action: 'PAY',
+        oldValue: {'isPaid': false, 'amount': bill.amount},
+        newValue: {'isPaid': true, 'accountId': accountId},
+        description: 'Paid bill: ${bill.title}, amount: ${bill.amount}',
+      );
     });
   }
 
@@ -164,5 +228,53 @@ class BillRepository {
               b.isPaid.equals(false) &
               b.dueDate.isBetweenValues(now, futureDate)))
         .get();
+  }
+
+  // -- Audit Log Helpers --
+
+  Map<String, dynamic> _billToMap(Bill row) {
+    return {
+      'id': row.id,
+      'title': row.title,
+      'amount': row.amount,
+      'dueDate': row.dueDate.toIso8601String(),
+      'repeatCycle': row.repeatCycle,
+      'isPaid': row.isPaid,
+      'categoryId': row.categoryId,
+      'userId': row.userId,
+      'note': row.note,
+    };
+  }
+
+  Map<String, dynamic> _companionToMap(BillsCompanion c) {
+    return {
+      if (c.title.present) 'title': c.title.value,
+      if (c.amount.present) 'amount': c.amount.value,
+      if (c.dueDate.present) 'dueDate': c.dueDate.value.toIso8601String(),
+      if (c.repeatCycle.present) 'repeatCycle': c.repeatCycle.value,
+      if (c.isPaid.present) 'isPaid': c.isPaid.value,
+      if (c.categoryId.present) 'categoryId': c.categoryId.value,
+      if (c.userId.present) 'userId': c.userId.value,
+      if (c.note.present) 'note': c.note.value,
+    };
+  }
+
+  Future<void> _logChange({
+    required String entityType,
+    required int entityId,
+    required String action,
+    Map<String, dynamic>? oldValue,
+    Map<String, dynamic>? newValue,
+    String? description,
+  }) async {
+    await _db.into(_db.auditLogs).insert(AuditLogsCompanion(
+      entityType: Value(entityType),
+      entityId: Value(entityId),
+      action: Value(action),
+      oldValue: Value(oldValue != null ? jsonEncode(oldValue) : null),
+      newValue: Value(newValue != null ? jsonEncode(newValue) : null),
+      description: Value(description),
+      timestamp: Value(DateTime.now()),
+    ));
   }
 }

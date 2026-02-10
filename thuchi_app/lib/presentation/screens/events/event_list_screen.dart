@@ -5,6 +5,7 @@ import '../../../core/utils/date_utils.dart' as app_date;
 import '../../../data/repositories/event_repository.dart';
 import '../../../providers/app_providers.dart';
 import '../../../providers/auth_provider.dart';
+import 'event_detail_screen.dart';
 import 'event_form_screen.dart';
 
 class EventListScreen extends ConsumerWidget {
@@ -80,7 +81,7 @@ class EventListScreen extends ConsumerWidget {
         borderRadius: BorderRadius.circular(12),
         onTap: () => Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => EventFormScreen(eventId: event.id)),
+          MaterialPageRoute(builder: (_) => EventDetailScreen(eventId: event.id)),
         ),
         child: Padding(
           padding: const EdgeInsets.all(16),

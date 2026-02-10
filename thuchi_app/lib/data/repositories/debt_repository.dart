@@ -33,42 +33,140 @@ class DebtRepository {
         .getSingleOrNull();
   }
 
-  /// Create new debt with automatic transaction
-  Future<int> createDebt(DebtsCompanion debt, int accountId) async {
+  /// Create new debt with optional transaction
+  /// If [createTransaction] is true (default), a transfer transaction is created
+  /// and the wallet balance is updated. If false, only the debt record is created
+  /// (useful for recording pre-existing debts).
+  Future<int> createDebt(DebtsCompanion debt, {int? accountId, bool createTransaction = true}) async {
     return _db.transaction(() async {
-      // 1. Insert debt record
+      // 1. Always insert debt record
       final debtId = await _db.into(_db.debts).insert(debt);
 
-      // 2. Create initial transaction
       final type = debt.type.value; // 'borrow' or 'lend'
       final amount = debt.totalAmount.value;
-      
-      // If BORROW -> We receive money (INCOME)
-      // If LEND -> We give money (EXPENSE)
-      final transType = type == 'borrow' ? 'income' : 'expense';
-      
-      await _db.into(_db.transactions).insert(TransactionsCompanion(
-        amount: Value(amount),
-        date: Value(debt.startDate.value),
-        type: Value(transType),
-        note: Value('Khoản ${type == "borrow" ? "vay" : "cho vay"}: ${debt.person.value}'),
-        accountId: Value(accountId),
-        debtId: Value(debtId),
-        userId: debt.userId,
-      ));
 
-      // 3. Update account balance
-      await _accountRepo.updateBalance(accountId, type == 'borrow' ? amount : -amount);
+      // 2. Only create transaction + update balance if requested
+      if (createTransaction && accountId != null) {
+        // Principal is TRANSFER (not income/expense) per plan_v4 business logic.
+        // Borrow: money flows IN (Transfer In) but is NOT income (must repay).
+        // Lend: money flows OUT (Transfer Out) but is NOT expense (will collect).
+        await _db.into(_db.transactions).insert(TransactionsCompanion(
+          amount: Value(amount),
+          date: Value(debt.startDate.value),
+          type: const Value('transfer'),
+          note: Value('Debt (${type == "borrow" ? "borrow" : "lend"}): ${debt.person.value}'),
+          accountId: Value(accountId),
+          debtId: Value(debtId),
+          userId: debt.userId,
+        ));
+
+        // Update account balance
+        await _accountRepo.updateBalance(accountId, type == 'borrow' ? amount : -amount);
+      }
+
+      // 3. Audit log
+      await _logChange(
+        entityType: 'Debt',
+        entityId: debtId,
+        action: 'CREATE',
+        newValue: _companionToMap(debt)..['id'] = debtId..['accountId'] = accountId..['createTransaction'] = createTransaction,
+        description: 'New debt ($type): ${debt.person.value}, amount: $amount, withTransaction: $createTransaction',
+      );
 
       return debtId;
     });
   }
 
   /// Update debt
+  /// Update debt
   Future<bool> updateDebt(Debt debt) async {
-    return _db.update(_db.debts).replace(debt.copyWith(
+    final oldDebt = await getDebtById(debt.id);
+    if (oldDebt == null) return false;
+
+    // V6: Logic to handle amount changes
+    if (debt.totalAmount != oldDebt.totalAmount) {
+      final diff = debt.totalAmount - oldDebt.totalAmount;
+      
+      // 1. Find the INITIAL transaction (creation)
+      // Usually the first transfer transaction for this debt.
+      final tx = await (_db.select(_db.transactions)
+            ..where((t) =>
+                t.debtId.equals(debt.id) &
+                t.type.equals('transfer')))
+          .getSingleOrNull(); // Use getSingleOrNull() or ordering?
+          // If there are repayments, there might be multiple transfers.
+          // The creation one is likely the one matching totalAmount or earliest date.
+      
+      // Better Query: Order by ID ASC (creation happens first)
+      final transactions = await (_db.select(_db.transactions)
+            ..where((t) =>
+                t.debtId.equals(debt.id) &
+                t.type.equals('transfer'))
+            ..orderBy([(t) => OrderingTerm.asc(t.id)]))
+          .get();
+
+      if (transactions.isNotEmpty) {
+        final initialTx = transactions.first;
+        
+        // 2. Update Transaction Amount
+        await (_db.update(_db.transactions)..where((t) => t.id.equals(initialTx.id))).write(
+          TransactionsCompanion(amount: Value(debt.totalAmount)),
+        );
+
+        // 3. Update Account Balance
+        // If Borrow: Balance increases (positive flow). Diff > 0 -> Balance + Diff.
+        // If Lend: Balance decreases (negative flow). Diff > 0 -> Balance - Diff.
+        if (initialTx.accountId != null) {
+          if (debt.type == 'borrow') {
+             await _accountRepo.updateBalance(initialTx.accountId!, diff);
+          } else {
+             await _accountRepo.updateBalance(initialTx.accountId!, -diff);
+          }
+        }
+      }
+      
+      // 4. Update Remaining Amount
+      // Start with old remaining, add the difference.
+      // E.g. Borrowed 100, paid 20, remaining 80.
+      // Update Borrow to 150 (diff +50). New remaining = 80 + 50 = 130. Correct.
+      final newRemaining = oldDebt.remainingAmount + diff;
+      debt = debt.copyWith(remainingAmount: newRemaining);
+    }
+
+    final result = await _db.update(_db.debts).replace(debt.copyWith(
           updatedAt: Value(DateTime.now()),
         ));
+
+    if (result) {
+      await _logChange(
+        entityType: 'Debt',
+        entityId: debt.id,
+        action: 'UPDATE',
+        oldValue: oldDebt != null ? _debtToMap(oldDebt) : null,
+        newValue: _debtToMap(debt),
+        description: 'Updated debt: ${debt.person} (amount: ${debt.totalAmount})',
+      );
+    }
+
+    return result;
+  }
+
+  /// Delete debt and related transactions
+  Future<void> deleteDebt(int id) async {
+    final oldDebt = await getDebtById(id);
+
+    await _db.transaction(() async {
+      await (_db.delete(_db.transactions)..where((t) => t.debtId.equals(id))).go();
+      await (_db.delete(_db.debts)..where((d) => d.id.equals(id))).go();
+
+      await _logChange(
+        entityType: 'Debt',
+        entityId: id,
+        action: 'DELETE',
+        oldValue: oldDebt != null ? _debtToMap(oldDebt) : null,
+        description: 'Deleted debt: ${oldDebt?.person}',
+      );
+    });
   }
 
   /// Add repayment transaction
@@ -92,7 +190,7 @@ class DebtRepository {
         amount: Value(principal),
         date: Value(now),
         type: Value('transfer'), // Use transfer for principal
-        note: Value('${note ?? "Trả gốc"}: ${debt.person}'),
+        note: Value('${note ?? "Principal repayment"}: ${debt.person}'),
         accountId: Value(accountId),
         debtId: Value(debtId),
         userId: Value(debt.userId),
@@ -106,7 +204,7 @@ class DebtRepository {
           amount: Value(interest),
           date: Value(now),
           type: Value(interestType),
-          note: Value('Tiền lãi: ${debt.person}'),
+          note: Value('Interest payment: ${debt.person}'),
           accountId: Value(accountId),
           categoryId: Value(categoryId),
           debtId: Value(debtId),
@@ -131,6 +229,22 @@ class DebtRepository {
       // If we are lending, we RECEIVE principal+interest -> balance increases
       final totalEffect = principal + interest;
       await _accountRepo.updateBalance(accountId, debt.type == 'borrow' ? -totalEffect : totalEffect);
+
+      // 5. Audit log
+      await _logChange(
+        entityType: 'Debt',
+        entityId: debtId,
+        action: 'REPAYMENT',
+        oldValue: {'remainingAmount': debt.remainingAmount, 'isFinished': debt.isFinished},
+        newValue: {
+          'principal': principal,
+          'interest': interest,
+          'remainingAmount': newRemaining,
+          'isFinished': isFinished,
+          'accountId': accountId,
+        },
+        description: 'Repayment for ${debt.person}: principal=$principal, interest=$interest',
+      );
     });
   }
 
@@ -141,5 +255,51 @@ class DebtRepository {
           ..orderBy([(t) => OrderingTerm.desc(t.date)]))
         .get();
   }
-}
 
+  // -- Audit Log Helpers --
+
+  Map<String, dynamic> _debtToMap(Debt row) {
+    return {
+      'id': row.id,
+      'type': row.type,
+      'person': row.person,
+      'totalAmount': row.totalAmount,
+      'remainingAmount': row.remainingAmount,
+      'startDate': row.startDate.toIso8601String(),
+      'dueDate': row.dueDate?.toIso8601String(),
+      'isFinished': row.isFinished,
+      'userId': row.userId,
+    };
+  }
+
+  Map<String, dynamic> _companionToMap(DebtsCompanion c) {
+    return {
+      if (c.type.present) 'type': c.type.value,
+      if (c.person.present) 'person': c.person.value,
+      if (c.totalAmount.present) 'totalAmount': c.totalAmount.value,
+      if (c.remainingAmount.present) 'remainingAmount': c.remainingAmount.value,
+      if (c.startDate.present) 'startDate': c.startDate.value.toIso8601String(),
+      if (c.dueDate.present) 'dueDate': c.dueDate.value?.toIso8601String(),
+      if (c.userId.present) 'userId': c.userId.value,
+    };
+  }
+
+  Future<void> _logChange({
+    required String entityType,
+    required int entityId,
+    required String action,
+    Map<String, dynamic>? oldValue,
+    Map<String, dynamic>? newValue,
+    String? description,
+  }) async {
+    await _db.into(_db.auditLogs).insert(AuditLogsCompanion(
+      entityType: Value(entityType),
+      entityId: Value(entityId),
+      action: Value(action),
+      oldValue: Value(oldValue != null ? jsonEncode(oldValue) : null),
+      newValue: Value(newValue != null ? jsonEncode(newValue) : null),
+      description: Value(description),
+      timestamp: Value(DateTime.now()),
+    ));
+  }
+}

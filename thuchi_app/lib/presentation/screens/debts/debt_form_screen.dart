@@ -10,11 +10,11 @@ import '../../../data/models/enums.dart';
 import '../../../providers/app_providers.dart';
 import '../../../providers/auth_provider.dart';
 import '../../widgets/attachment_viewer.dart';
-import '../../../providers/app_providers.dart';
-import '../../../providers/auth_provider.dart';
 
 class DebtFormScreen extends ConsumerStatefulWidget {
-  const DebtFormScreen({super.key});
+  final Debt? existingDebt; // null = create mode
+
+  const DebtFormScreen({super.key, this.existingDebt});
 
   @override
   ConsumerState<DebtFormScreen> createState() => _DebtFormScreenState();
@@ -27,34 +27,57 @@ class _DebtFormScreenState extends ConsumerState<DebtFormScreen> {
   final _interestRateController = TextEditingController(text: '0');
   final _notifyDaysController = TextEditingController(text: '3');
   final _noteController = TextEditingController();
-  
-  String _type = 'lend'; // lend, borrow
+
+  String _type = 'lend';
   InterestType _interestType = InterestType.percentYear;
   DateTime _startDate = DateTime.now();
   DateTime? _dueDate;
   int? _selectedAccountId;
-  
+
   List<File> _attachedFiles = [];
   bool _isSaving = false;
+  bool _createTransaction = true; // V6: toggle for wallet transaction
+  bool get _isEdit => widget.existingDebt != null;
+
+  @override
+  void initState() {
+    super.initState();
+    if (_isEdit) {
+      final d = widget.existingDebt!;
+      _personController.text = d.person;
+      _amountController.text = d.totalAmount.toStringAsFixed(0);
+      _interestRateController.text = d.interestRate.toString();
+      _notifyDaysController.text = d.notifyDays.toString();
+      _noteController.text = d.note ?? '';
+      _type = d.type;
+      _interestType = InterestType.values.firstWhere(
+        (e) => e.name == d.interestType,
+        orElse: () => InterestType.percentYear,
+      );
+      _startDate = d.startDate;
+      _dueDate = d.dueDate;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final accountsAsync = ref.watch(accountsProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Thêm khoản nợ')),
+      appBar: AppBar(title: Text(_isEdit ? 'Chỉnh sửa khoản nợ' : 'Thêm khoản nợ')),
       body: Form(
         key: _formKey,
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            // Type selector (disabled in edit mode)
             SegmentedButton<String>(
               segments: const [
                 ButtonSegment(value: 'lend', label: Text('Cho vay')),
                 ButtonSegment(value: 'borrow', label: Text('Đi vay')),
               ],
               selected: {_type},
-              onSelectionChanged: (val) => setState(() => _type = val.first),
+              onSelectionChanged: _isEdit ? null : (val) => setState(() => _type = val.first),
             ),
             const SizedBox(height: 16),
             TextFormField(
@@ -74,6 +97,7 @@ class _DebtFormScreenState extends ConsumerState<DebtFormScreen> {
                 suffixText: 'đ',
               ),
               keyboardType: TextInputType.number,
+              // enabled: true, // V6: Allow editing amount
               validator: (v) {
                 if (v == null || v.isEmpty) return 'Nhập số tiền';
                 if (CurrencyUtils.parse(v) == null) return 'Số tiền không hợp lệ';
@@ -81,30 +105,47 @@ class _DebtFormScreenState extends ConsumerState<DebtFormScreen> {
               },
             ),
             const SizedBox(height: 16),
-            // Account Selection
-            accountsAsync.when(
-              data: (accounts) {
-                if (_selectedAccountId == null && accounts.isNotEmpty) {
-                  _selectedAccountId = accounts.first.id;
-                }
-                return DropdownButtonFormField<int>(
-                  value: _selectedAccountId,
-                  decoration: const InputDecoration(
-                    labelText: 'Tài khoản/Ví liên kết',
-                    prefixIcon: Icon(Icons.wallet),
-                  ),
-                  items: accounts.map((a) => DropdownMenuItem(
-                    value: a.id,
-                    child: Text(a.name),
-                  )).toList(),
-                  onChanged: (val) => setState(() => _selectedAccountId = val),
-                  validator: (val) => val == null ? 'Vui lòng chọn ví' : null,
-                );
-              },
-              loading: () => const LinearProgressIndicator(),
-              error: (_, __) => const Text('Lỗi tải danh sách ví'),
-            ),
-            const SizedBox(height: 16),
+            // V6: Switch for creating transaction
+            if (!_isEdit) ...[
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Ghi nhận giao dịch vào Ví?'),
+                subtitle: Text(
+                  _createTransaction
+                      ? 'Sẽ trừ/cộng tiền trong ví liên kết'
+                      : 'Chỉ ghi sổ nợ, không ảnh hưởng số dư ví',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                value: _createTransaction,
+                onChanged: (val) => setState(() => _createTransaction = val),
+              ),
+              const SizedBox(height: 8),
+            ],
+            // Account selection (only in create mode AND createTransaction is ON)
+            if (!_isEdit && _createTransaction)
+              accountsAsync.when(
+                data: (accounts) {
+                  if (_selectedAccountId == null && accounts.isNotEmpty) {
+                    _selectedAccountId = accounts.first.id;
+                  }
+                  return DropdownButtonFormField<int>(
+                    value: _selectedAccountId,
+                    decoration: const InputDecoration(
+                      labelText: 'Tài khoản/Ví liên kết',
+                      prefixIcon: Icon(Icons.wallet),
+                    ),
+                    items: accounts.map((a) => DropdownMenuItem(
+                      value: a.id,
+                      child: Text(a.name),
+                    )).toList(),
+                    onChanged: (val) => setState(() => _selectedAccountId = val),
+                    validator: (val) => val == null ? 'Vui lòng chọn ví' : null,
+                  );
+                },
+                loading: () => const LinearProgressIndicator(),
+                error: (_, __) => const Text('Lỗi tải danh sách ví'),
+              ),
+            if (!_isEdit && _createTransaction) const SizedBox(height: 16),
             Row(
               children: [
                 Expanded(
@@ -141,7 +182,7 @@ class _DebtFormScreenState extends ConsumerState<DebtFormScreen> {
                     title: const Text('Ngày bắt đầu'),
                     subtitle: Text(_startDate.toString().split(' ')[0]),
                     trailing: const Icon(Icons.calendar_today),
-                    onTap: () async {
+                    onTap: _isEdit ? null : () async {
                       final date = await showDatePicker(
                         context: context,
                         initialDate: _startDate,
@@ -160,7 +201,7 @@ class _DebtFormScreenState extends ConsumerState<DebtFormScreen> {
                     onTap: () async {
                       final date = await showDatePicker(
                         context: context,
-                        initialDate: DateTime.now().add(const Duration(days: 30)),
+                        initialDate: _dueDate ?? DateTime.now().add(const Duration(days: 30)),
                         firstDate: _startDate,
                         lastDate: DateTime(2100),
                       );
@@ -191,29 +232,31 @@ class _DebtFormScreenState extends ConsumerState<DebtFormScreen> {
               maxLines: 2,
             ),
             const SizedBox(height: 16),
-            
-            // Attachment Section
-            Row(
-              children: [
-                TextButton.icon(
-                  onPressed: _pickFiles, 
-                  icon: const Icon(Icons.attach_file),
-                  label: const Text('Đính kèm chứng từ'),
-                ),
-              ],
-            ),
-            if (_attachedFiles.isNotEmpty) 
-              AttachmentViewer(
-                files: _attachedFiles,
-                onRemove: (f) => setState(() => _attachedFiles.remove(f)),
+
+            // Attachment (only in create mode)
+            if (!_isEdit) ...[
+              Row(
+                children: [
+                  TextButton.icon(
+                    onPressed: _pickFiles,
+                    icon: const Icon(Icons.attach_file),
+                    label: const Text('Đính kèm chứng từ'),
+                  ),
+                ],
               ),
+              if (_attachedFiles.isNotEmpty)
+                AttachmentViewer(
+                  files: _attachedFiles,
+                  onRemove: (f) => setState(() => _attachedFiles.remove(f)),
+                ),
+            ],
             const SizedBox(height: 32),
             FilledButton.icon(
               onPressed: _isSaving ? null : _saveDebt,
-              icon: _isSaving 
+              icon: _isSaving
                 ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                 : const Icon(Icons.save),
-              label: const Text('Lưu khoản nợ'),
+              label: Text(_isEdit ? 'Lưu thay đổi' : 'Lưu khoản nợ'),
               style: FilledButton.styleFrom(
                 minimumSize: const Size.fromHeight(50),
               ),
@@ -230,48 +273,12 @@ class _DebtFormScreenState extends ConsumerState<DebtFormScreen> {
     setState(() => _isSaving = true);
 
     try {
-      final amount = CurrencyUtils.parse(_amountController.text)!;
-      final interestRate = double.tryParse(_interestRateController.text) ?? 0;
-      final notifyDays = int.tryParse(_notifyDaysController.text) ?? 3;
-      
-      final user = ref.read(authProvider).user;
-      if (user == null) return;
-
-      final debt = DebtsCompanion(
-        person: drift.Value(_personController.text),
-        totalAmount: drift.Value(amount),
-        remainingAmount: drift.Value(amount),
-        interestRate: drift.Value(interestRate),
-        interestType: drift.Value(_interestType.name),
-        startDate: drift.Value(_startDate),
-        dueDate: drift.Value(_dueDate),
-        notifyDays: drift.Value(int.parse(_notifyDaysController.text)),
-        type: drift.Value(_type),
-        note: drift.Value(_noteController.text),
-        userId: drift.Value(ref.read(authProvider).user!.id),
-      );
-
-      final debtId = await ref.read(debtRepositoryProvider).createDebt(debt, _selectedAccountId!);
-      
-      // Save Attachments
-      if (_attachedFiles.isNotEmpty) {
-        final attachmentRepo = ref.read(attachmentRepositoryProvider);
-        final fileStorage = ref.read(fileStorageServiceProvider);
-        
-        for (final file in _attachedFiles) {
-          final metadata = await fileStorage.saveFile(file);
-          await attachmentRepo.createAttachment(AttachmentsCompanion(
-            debtId: drift.Value(debtId),
-            fileName: drift.Value(metadata['fileName']),
-            fileType: drift.Value(metadata['format']),
-            fileSize: drift.Value(metadata['size']),
-            localPath: drift.Value(metadata['localPath']),
-            syncStatus: const drift.Value('PENDING'),
-          ));
-        }
+      if (_isEdit) {
+        await _updateDebt();
+      } else {
+        await _createDebt();
       }
-
-      if (mounted) Navigator.pop(context);
+      if (mounted) Navigator.pop(context, true); // Return true on success
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
@@ -279,6 +286,65 @@ class _DebtFormScreenState extends ConsumerState<DebtFormScreen> {
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
+  }
+
+  Future<void> _createDebt() async {
+    final amount = CurrencyUtils.parse(_amountController.text)!;
+    final user = ref.read(authProvider).user;
+    if (user == null) return;
+
+    final debt = DebtsCompanion(
+      person: drift.Value(_personController.text),
+      totalAmount: drift.Value(amount),
+      remainingAmount: drift.Value(amount),
+      interestRate: drift.Value(double.tryParse(_interestRateController.text) ?? 0),
+      interestType: drift.Value(_interestType.name),
+      startDate: drift.Value(_startDate),
+      dueDate: drift.Value(_dueDate),
+      notifyDays: drift.Value(int.tryParse(_notifyDaysController.text) ?? 3),
+      type: drift.Value(_type),
+      note: drift.Value(_noteController.text),
+      userId: drift.Value(user.id),
+    );
+
+    final debtId = await ref.read(debtRepositoryProvider).createDebt(
+      debt,
+      accountId: _createTransaction ? _selectedAccountId : null,
+      createTransaction: _createTransaction,
+    );
+
+    // Save Attachments
+    if (_attachedFiles.isNotEmpty) {
+      final attachmentRepo = ref.read(attachmentRepositoryProvider);
+      final fileStorage = ref.read(fileStorageServiceProvider);
+
+      for (final file in _attachedFiles) {
+        final metadata = await fileStorage.saveFile(file);
+        await attachmentRepo.createAttachment(AttachmentsCompanion(
+          debtId: drift.Value(debtId),
+          fileName: drift.Value(metadata['fileName']),
+          fileType: drift.Value(metadata['format']),
+          fileSize: drift.Value(metadata['size']),
+          localPath: drift.Value(metadata['localPath']),
+          syncStatus: const drift.Value('PENDING'),
+        ));
+      }
+    }
+  }
+
+  Future<void> _updateDebt() async {
+    final existing = widget.existingDebt!;
+    final updated = existing.copyWith(
+      person: _personController.text,
+      totalAmount: CurrencyUtils.parse(_amountController.text)!,
+      interestRate: double.tryParse(_interestRateController.text) ?? 0,
+      interestType: _interestType.name,
+      dueDate: drift.Value(_dueDate),
+      notifyDays: int.tryParse(_notifyDaysController.text) ?? 3,
+      note: drift.Value(_noteController.text),
+      updatedAt: drift.Value(DateTime.now()),
+    );
+    await ref.read(debtRepositoryProvider).updateDebt(updated);
   }
 
   Future<void> _pickFiles() async {

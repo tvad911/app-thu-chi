@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -130,14 +131,22 @@ class _SyncSettingsScreenState extends ConsumerState<SyncSettingsScreen> {
       } else {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Đăng nhập thất bại')),
+            const SnackBar(content: Text('Đăng nhập thất bại. Đảm bảo bạn đã cấu hình google-services.json')),
           );
         }
+      }
+    } on UnsupportedError catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message ?? 'Platform không hỗ trợ')),
+        );
+        // Switch to none
+        ref.read(storageProviderTypeProvider.notifier).state = 'none';
       }
     } catch (e) {
        if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Lỗi: $e')),
+            SnackBar(content: Text('Lỗi kết nối: $e')),
           );
        }
     } finally {
@@ -181,19 +190,22 @@ class _SyncSettingsScreenState extends ConsumerState<SyncSettingsScreen> {
   }
 
   Widget _buildProviderSelector(String currentType) {
+    final isDesktop = Platform.isLinux || Platform.isWindows || Platform.isMacOS;
+
     return SegmentedButton<String>(
-      segments: const [
-        ButtonSegment(
+      segments: [
+        const ButtonSegment(
           value: 'none', 
           label: Text('Tắt'), 
           icon: Icon(Icons.cloud_off)
         ),
-        ButtonSegment(
-          value: 'drive', 
-          label: Text('Google Drive'), 
-          icon: Icon(Icons.add_to_drive)
-        ),
-        ButtonSegment(
+        if (!isDesktop)
+          const ButtonSegment(
+            value: 'drive', 
+            label: Text('Google Drive'), 
+            icon: Icon(Icons.add_to_drive)
+          ),
+        const ButtonSegment(
           value: 's3', 
           label: Text('S3 Storage'), 
           icon: Icon(Icons.storage)

@@ -228,39 +228,54 @@ class _BillFormScreenState extends ConsumerState<BillFormScreen> {
       final billRepo = ref.read(billRepositoryProvider);
       final userId = ref.read(authProvider).user!.id;
       
-      final billComp = BillsCompanion(
-        title: drift.Value(_titleController.text),
-        amount: drift.Value(amount),
-        dueDate: drift.Value(_dueDate),
-        repeatCycle: drift.Value(_repeatCycle.name),
-        notifyBefore: drift.Value(int.tryParse(_notifyDaysController.text) ?? 3),
-        categoryId: drift.Value(_selectedCategory?.id),
-        userId: drift.Value(userId),
-        note: drift.Value(_noteController.text),
-        isPaid: const drift.Value(false),
-      );
-      
-      final billId = await billRepo.createBill(billComp);
-      
-       // Save Attachments
-      if (_attachedFiles.isNotEmpty) {
-        final attachmentRepo = ref.read(attachmentRepositoryProvider);
-        final fileStorage = ref.read(fileStorageServiceProvider);
+      if (widget.bill != null) {
+        // Update existing bill
+        final updated = widget.bill!.copyWith(
+          title: _titleController.text,
+          amount: amount,
+          dueDate: _dueDate,
+          repeatCycle: _repeatCycle.name,
+          notifyBefore: int.tryParse(_notifyDaysController.text) ?? 3,
+          categoryId: drift.Value(_selectedCategory?.id),
+          note: drift.Value(_noteController.text),
+        );
+        await billRepo.updateBill(updated);
+      } else {
+        // Create new bill
+        final billComp = BillsCompanion(
+          title: drift.Value(_titleController.text),
+          amount: drift.Value(amount),
+          dueDate: drift.Value(_dueDate),
+          repeatCycle: drift.Value(_repeatCycle.name),
+          notifyBefore: drift.Value(int.tryParse(_notifyDaysController.text) ?? 3),
+          categoryId: drift.Value(_selectedCategory?.id),
+          userId: drift.Value(userId),
+          note: drift.Value(_noteController.text),
+          isPaid: const drift.Value(false),
+        );
         
-        for (final file in _attachedFiles) {
-          final metadata = await fileStorage.saveFile(file);
-          await attachmentRepo.createAttachment(AttachmentsCompanion(
-            billId: drift.Value(billId),
-            fileName: drift.Value(metadata['fileName']),
-            fileType: drift.Value(metadata['format']),
-            fileSize: drift.Value(metadata['size']),
-            localPath: drift.Value(metadata['localPath']),
-            syncStatus: const drift.Value('PENDING'),
-          ));
+        final billId = await billRepo.createBill(billComp);
+        
+        // Save Attachments
+        if (_attachedFiles.isNotEmpty) {
+          final attachmentRepo = ref.read(attachmentRepositoryProvider);
+          final fileStorage = ref.read(fileStorageServiceProvider);
+          
+          for (final file in _attachedFiles) {
+            final metadata = await fileStorage.saveFile(file);
+            await attachmentRepo.createAttachment(AttachmentsCompanion(
+              billId: drift.Value(billId),
+              fileName: drift.Value(metadata['fileName']),
+              fileType: drift.Value(metadata['format']),
+              fileSize: drift.Value(metadata['size']),
+              localPath: drift.Value(metadata['localPath']),
+              syncStatus: const drift.Value('PENDING'),
+            ));
+          }
         }
       }
       
-      if (mounted) Navigator.pop(context);
+      if (mounted) Navigator.pop(context, true);
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
     } finally {

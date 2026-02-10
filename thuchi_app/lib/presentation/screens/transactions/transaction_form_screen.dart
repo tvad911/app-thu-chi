@@ -14,7 +14,8 @@ import '../../widgets/attachment_viewer.dart';
 import '../../widgets/form_keyboard_shortcuts.dart';
 
 class TransactionFormScreen extends ConsumerStatefulWidget {
-  const TransactionFormScreen({super.key});
+  final Event? initialEvent;
+  const TransactionFormScreen({super.key, this.initialEvent});
 
   @override
   ConsumerState<TransactionFormScreen> createState() => _TransactionFormScreenState();
@@ -30,6 +31,7 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen> w
   Account? _selectedAccount;
   Account? _selectedToAccount; // For transfer
   Category? _selectedCategory;
+  Event? _selectedEvent;
   List<File> _attachedFiles = [];
   bool _isSaving = false;
 
@@ -39,6 +41,7 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen> w
     _tabController = TabController(length: 3, vsync: this);
     _tabController.index = 1; // Default to Expense
     _tabController.addListener(_handleTabSelection);
+    _selectedEvent = widget.initialEvent;
   }
 
   void _handleTabSelection() {
@@ -121,6 +124,7 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen> w
           accountId: drift.Value(_selectedAccount!.id),
           categoryId: drift.Value(_selectedCategory?.id),
           toAccountId: drift.Value(_selectedToAccount?.id),
+          eventId: drift.Value(_selectedEvent?.id),
           userId: drift.Value(userId),
         ),
       );
@@ -183,6 +187,7 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen> w
   Widget build(BuildContext context) {
     final accountsAsync = ref.watch(accountsProvider);
     final categoriesAsync = ref.watch(categoriesProvider);
+    final activeEvents = ref.watch(activeEventsProvider);
 
     return FormKeyboardShortcuts(
       onSave: _saveTransaction,
@@ -401,6 +406,34 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen> w
                     prefixIcon: Icon(Icons.note),
                   ),
                   maxLines: 2,
+                ),
+                const SizedBox(height: 16),
+
+                // Event Selection
+                activeEvents.when(
+                  data: (events) {
+                    if (events.isEmpty) return const SizedBox.shrink();
+                    return DropdownButtonFormField<Event?>(
+                      value: _selectedEvent,
+                      decoration: const InputDecoration(
+                        labelText: 'Sự kiện (tuỳ chọn)',
+                        prefixIcon: Icon(Icons.event),
+                      ),
+                      items: [
+                        const DropdownMenuItem<Event?>(
+                          value: null,
+                          child: Text('Không có sự kiện'),
+                        ),
+                        ...events.map((e) => DropdownMenuItem<Event?>(
+                          value: e,
+                          child: Text(e.name),
+                        )),
+                      ],
+                      onChanged: (val) => setState(() => _selectedEvent = val),
+                    );
+                  },
+                  loading: () => const SizedBox.shrink(),
+                  error: (_, __) => const SizedBox.shrink(),
                 ),
                 const SizedBox(height: 16),
                 

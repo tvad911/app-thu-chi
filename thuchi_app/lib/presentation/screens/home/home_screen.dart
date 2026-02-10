@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/utils/currency_utils.dart';
+import '../../../data/repositories/event_repository.dart';
 import '../../../providers/app_providers.dart';
+import '../../../providers/auth_provider.dart';
 import '../accounts/account_list_horizontal.dart';
 import '../bills/bill_list_screen.dart';
 import '../debts/debt_list_screen.dart';
+import '../events/event_detail_screen.dart';
 import '../events/event_list_screen.dart';
 import '../transactions/recent_transactions_list.dart';
 
@@ -43,6 +46,11 @@ class HomeScreen extends ConsumerWidget {
                   error: (err, stack) => Text('Lỗi: $err'),
                 ),
               ),
+            ),
+
+            // Active Events Widget
+            SliverToBoxAdapter(
+              child: _ActiveEventsBanner(ref: ref),
             ),
             // Quick access shortcuts
             SliverToBoxAdapter(
@@ -186,6 +194,95 @@ class _QuickAction extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _ActiveEventsBanner extends StatelessWidget {
+  final WidgetRef ref;
+  const _ActiveEventsBanner({required this.ref});
+
+  @override
+  Widget build(BuildContext context) {
+    final user = ref.watch(currentUserProvider);
+    if (user == null) return const SizedBox.shrink();
+
+    return FutureBuilder<List<EventWithSpending>>(
+      future: ref.read(eventRepositoryProvider).getEventsWithSpending(user.id),
+      builder: (context, snapshot) {
+        final events = (snapshot.data ?? []).where((e) => !e.event.isFinished).toList();
+        if (events.isEmpty) return const SizedBox.shrink();
+
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          child: Column(
+            children: events.take(2).map((data) {
+              final event = data.event;
+              final usagePercent = data.usagePercent;
+              Color progressColor;
+              if (usagePercent >= 100) {
+                progressColor = Colors.red;
+              } else if (usagePercent >= 80) {
+                progressColor = Colors.orange;
+              } else {
+                progressColor = Colors.teal;
+              }
+
+              return Card(
+                margin: const EdgeInsets.only(bottom: 8),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => EventDetailScreen(eventId: event.id)),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.teal.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(Icons.flight_takeoff, color: Colors.teal, size: 20),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(event.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                              const SizedBox(height: 4),
+                              Text(
+                                '${CurrencyUtils.format(data.totalSpending)} / ${CurrencyUtils.format(event.budget)}',
+                                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                              ),
+                              const SizedBox(height: 4),
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(4),
+                                child: LinearProgressIndicator(
+                                  value: (usagePercent / 100).clamp(0.0, 1.0),
+                                  minHeight: 6,
+                                  backgroundColor: Colors.grey.shade200,
+                                  color: progressColor,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        const Icon(Icons.chevron_right, color: Colors.grey),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        );
+      },
     );
   }
 }

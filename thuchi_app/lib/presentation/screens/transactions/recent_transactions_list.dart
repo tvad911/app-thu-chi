@@ -27,13 +27,33 @@ class RecentTransactionsList extends ConsumerWidget {
           );
         }
 
+        // Group transactions by date
+        final grouped = <DateTime, List<TransactionWithDetails>>{};
+        for (final t in transactions) {
+          final dateKey = DateTime(t.transaction.date.year, t.transaction.date.month, t.transaction.date.day);
+          grouped.putIfAbsent(dateKey, () => []).add(t);
+        }
+        final sortedKeys = grouped.keys.toList()..sort((a, b) => b.compareTo(a));
+
+        // Build flat list with date headers
+        final items = <_ListItem>[];
+        for (final dateKey in sortedKeys) {
+          items.add(_ListItem.header(dateKey));
+          for (final txn in grouped[dateKey]!) {
+            items.add(_ListItem.transaction(txn));
+          }
+        }
+
         return SliverList(
           delegate: SliverChildBuilderDelegate(
             (context, index) {
-              final transaction = transactions[index];
-              return TransactionItem(item: transaction);
+              final item = items[index];
+              if (item.isHeader) {
+                return _DateHeader(date: item.date!);
+              }
+              return TransactionItem(item: item.transaction!);
             },
-            childCount: transactions.length,
+            childCount: items.length,
           ),
         );
       },
@@ -45,6 +65,36 @@ class RecentTransactionsList extends ConsumerWidget {
       ),
       error: (err, stack) => SliverToBoxAdapter(
         child: Center(child: Text('Lỗi: $err')),
+      ),
+    );
+  }
+}
+
+/// Internal model for mixed header/transaction list
+class _ListItem {
+  final DateTime? date;
+  final TransactionWithDetails? transaction;
+  final bool isHeader;
+
+  _ListItem.header(this.date) : transaction = null, isHeader = true;
+  _ListItem.transaction(this.transaction) : date = null, isHeader = false;
+}
+
+class _DateHeader extends StatelessWidget {
+  final DateTime date;
+  const _DateHeader({required this.date});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      child: Text(
+        app_date.DateUtils.formatRelative(date),
+        style: TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+          color: Colors.grey[600],
+        ),
       ),
     );
   }
@@ -94,7 +144,7 @@ class TransactionItem extends StatelessWidget {
         style: const TextStyle(fontWeight: FontWeight.bold),
       ),
       subtitle: Text(
-        '${app_date.DateUtils.formatDayMonth(t.date)} • ${item.account.name}',
+        item.account.name,
       ),
       trailing: Text(
         '$prefix${CurrencyUtils.formatVND(t.amount)}',
@@ -105,7 +155,7 @@ class TransactionItem extends StatelessWidget {
         ),
       ),
       onTap: () {
-        // TODO: Navigate to Common Details
+        // TODO: Navigate to transaction details
       },
     );
   }

@@ -46,7 +46,7 @@ class TransactionRepository {
   }
 
   /// Get monthly category stats for user
-  Future<List<CategoryStat>> getCategoryStats(int userId, DateTime month, String type) async {
+  Future<List<CategoryStat>> getCategoryStats(int userId, DateTime month, String type, {bool excludeEvents = false}) async {
     final startDate = DateTime(month.year, month.month, 1);
     final endDate = DateTime(month.year, month.month + 1, 1);
 
@@ -57,12 +57,14 @@ class TransactionRepository {
       ),
     ]);
 
-    query.where(
-      _db.transactions.userId.equals(userId) &
+    var condition = _db.transactions.userId.equals(userId) &
       _db.transactions.date.isBiggerOrEqualValue(startDate) &
       _db.transactions.date.isSmallerThanValue(endDate) &
-      _db.transactions.type.equals(type)
-    );
+      _db.transactions.type.equals(type);
+    if (excludeEvents) {
+      condition = condition & _db.transactions.eventId.isNull();
+    }
+    query.where(condition);
 
     final result = await query.get();
 
@@ -155,6 +157,67 @@ class TransactionRepository {
     });
   }
 
+  Future<void> updateTransaction(TransactionsCompanion transaction) async {
+    return _db.transaction(() async {
+      final id = transaction.id.value;
+      final oldTransaction = await (_db.select(_db.transactions)..where((t) => t.id.equals(id))).getSingle();
+      
+      // 1. Revert old balance
+      final oldType = oldTransaction.type;
+      final oldAmount = oldTransaction.amount;
+      final oldAccountId = oldTransaction.accountId;
+
+      if (oldType == 'income') {
+        await _accountRepo.updateBalance(oldAccountId, -oldAmount);
+      } else if (oldType == 'expense') {
+        await _accountRepo.updateBalance(oldAccountId, oldAmount);
+      } else if (oldType == 'transfer') {
+         final oldToAccountId = oldTransaction.toAccountId;
+         if (oldToAccountId != null) {
+            await _accountRepo.updateBalance(oldAccountId, oldAmount);
+            await _accountRepo.updateBalance(oldToAccountId, -oldAmount);
+         }
+      }
+
+      // 2. Update transaction
+      await (_db.update(_db.transactions)..where((t) => t.id.equals(id))).write(transaction);
+
+      // 3. Apply new balance
+      // Logic: If using companion, fields might be Value.absent() if not updated.
+      // But updateTransaction usually passes full object or we need to merge.
+      // Better approach for safety: Read the updated row back or use `transaction` values if present, else old values.
+      // However, typical update form sends all fields. Let's assume critical fields are present or merge manually.
+      // Safer: Fetch updated row.
+      final updatedTransaction = await (_db.select(_db.transactions)..where((t) => t.id.equals(id))).getSingle();
+      
+      final newType = updatedTransaction.type;
+      final newAmount = updatedTransaction.amount;
+      final newAccountId = updatedTransaction.accountId;
+
+      if (newType == 'income') {
+        await _accountRepo.updateBalance(newAccountId, newAmount);
+      } else if (newType == 'expense') {
+        await _accountRepo.updateBalance(newAccountId, -newAmount);
+      } else if (newType == 'transfer') {
+         final newToAccountId = updatedTransaction.toAccountId;
+         if (newToAccountId != null) {
+            await _accountRepo.updateBalance(newAccountId, -newAmount);
+            await _accountRepo.updateBalance(newToAccountId, newAmount);
+         }
+      }
+
+      // Audit Log
+      await _logChange(
+        entityType: 'Transaction',
+        entityId: id,
+        action: 'UPDATE',
+        oldValue: _rowToMap(oldTransaction),
+        newValue: _rowToMap(updatedTransaction),
+        description: 'Updated transaction',
+      );
+    });
+  }
+
   Map<String, dynamic> _companionToMap(TransactionsCompanion c) {
     return {
       if (c.amount.present) 'amount': c.amount.value,
@@ -199,6 +262,96 @@ class TransactionRepository {
       description: Value(description),
       timestamp: Value(DateTime.now()),
     ));
+  }
+
+  /// Get monthly income/expense totals for a user
+  Future<Map<String, double>> getMonthlyTotals(int userId, DateTime month, {bool excludeEvents = false}) async {
+    final startOfMonth = DateTime(month.year, month.month, 1);
+    final endOfMonth = DateTime(month.year, month.month + 1, 0, 23, 59, 59);
+
+    final query = _db.select(_db.transactions)
+          ..where((t) {
+              var condition = t.userId.equals(userId) &
+                  t.date.isBiggerOrEqualValue(startOfMonth) &
+                  t.date.isSmallerOrEqualValue(endOfMonth) &
+                  t.type.isIn(['income', 'expense']);
+              if (excludeEvents) {
+                condition = condition & t.eventId.isNull();
+              }
+              return condition;
+          });
+    final rows = await query.get();
+
+    double totalIncome = 0;
+    double totalExpense = 0;
+    for (final r in rows) {
+      if (r.type == 'income') {
+        totalIncome += r.amount;
+      } else if (r.type == 'expense') {
+        totalExpense += r.amount;
+      }
+    }
+
+    return {
+      'income': totalIncome,
+      'expense': totalExpense,
+      'balance': totalIncome - totalExpense,
+    };
+  }
+
+  /// Get daily income/expense totals for bar chart
+  Future<List<Map<String, dynamic>>> getDailyTotals(int userId, DateTime month, {bool excludeEvents = false}) async {
+    final startOfMonth = DateTime(month.year, month.month, 1);
+    final endOfMonth = DateTime(month.year, month.month + 1, 0, 23, 59, 59);
+
+    final rows = await (_db.select(_db.transactions)
+          ..where((t) {
+              var condition = t.userId.equals(userId) &
+                  t.date.isBiggerOrEqualValue(startOfMonth) &
+                  t.date.isSmallerOrEqualValue(endOfMonth) &
+                  t.type.isIn(['income', 'expense']);
+              if (excludeEvents) {
+                condition = condition & t.eventId.isNull();
+              }
+              return condition;
+          })
+          ..orderBy([(t) => OrderingTerm.asc(t.date)]))
+        .get();
+
+    // Group by day
+    final Map<int, Map<String, double>> dailyMap = {};
+    for (final r in rows) {
+      final day = r.date.day;
+      dailyMap.putIfAbsent(day, () => {'income': 0, 'expense': 0});
+      dailyMap[day]![r.type] = (dailyMap[day]![r.type] ?? 0) + r.amount;
+    }
+
+    return dailyMap.entries.map((e) => {
+      'day': e.key,
+      'income': e.value['income'] ?? 0.0,
+      'expense': e.value['expense'] ?? 0.0,
+    }).toList()..sort((a, b) => (a['day'] as int).compareTo(b['day'] as int));
+  }
+
+  /// Get top transactions by amount in a month
+  Future<List<Transaction>> getTopTransactions(int userId, DateTime month, {int limit = 10, bool excludeEvents = false}) async {
+    final startOfMonth = DateTime(month.year, month.month, 1);
+    final endOfMonth = DateTime(month.year, month.month + 1, 0, 23, 59, 59);
+
+    return (_db.select(_db.transactions)
+          ..where((t) {
+              var condition = t.userId.equals(userId) &
+                  t.date.isBiggerOrEqualValue(startOfMonth) &
+                  t.date.isSmallerOrEqualValue(endOfMonth) &
+                  t.type.isIn(['income', 'expense']);
+              if (excludeEvents) {
+                condition = condition & t.eventId.isNull();
+              }
+              return condition;
+          })
+          ..orderBy([(t) => OrderingTerm.desc(t.amount)])
+          ..limit(limit))
+        .get();
   }
 }
 

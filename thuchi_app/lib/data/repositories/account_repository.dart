@@ -1,4 +1,5 @@
 import 'package:drift/drift.dart';
+import 'dart:convert';
 
 import '../database/app_database.dart';
 
@@ -39,7 +40,17 @@ class AccountRepository {
 
   /// Insert new account
   Future<int> insertAccount(AccountsCompanion account) async {
-    return _db.into(_db.accounts).insert(account);
+    final id = await _db.into(_db.accounts).insert(account);
+
+    await _logChange(
+      entityType: 'Account',
+      entityId: id,
+      action: 'CREATE',
+      newValue: _companionToMap(account)..['id'] = id,
+      description: 'New account: ${account.name.value}',
+    );
+
+    return id;
   }
   
   /// Alias for insertAccount
@@ -47,9 +58,24 @@ class AccountRepository {
 
   /// Update existing account
   Future<bool> updateAccount(Account account) async {
-    return _db.update(_db.accounts).replace(account.copyWith(
+    final oldAccount = await getAccountById(account.id);
+
+    final result = await _db.update(_db.accounts).replace(account.copyWith(
           updatedAt: Value(DateTime.now()),
         ));
+
+    if (result) {
+      await _logChange(
+        entityType: 'Account',
+        entityId: account.id,
+        action: 'UPDATE',
+        oldValue: oldAccount != null ? _accountToMap(oldAccount) : null,
+        newValue: _accountToMap(account),
+        description: 'Updated account: ${account.name}',
+      );
+    }
+
+    return result;
   }
   
   /// Update account with companion
@@ -71,16 +97,81 @@ class AccountRepository {
 
    /// Archive account
   Future<void> archiveAccount(int accountId) async {
+    final oldAccount = await getAccountById(accountId);
+
     await (_db.update(_db.accounts)..where((a) => a.id.equals(accountId)))
         .write(const AccountsCompanion(
       isArchived: Value(true),
       updatedAt: Value(null),
     ));
+
+    await _logChange(
+      entityType: 'Account',
+      entityId: accountId,
+      action: 'ARCHIVE',
+      oldValue: oldAccount != null ? {'isArchived': false} : null,
+      newValue: {'isArchived': true},
+      description: 'Archived account: ${oldAccount?.name}',
+    );
   }
 
   /// Delete account
   Future<int> deleteAccount(int accountId) async {
-    return (_db.delete(_db.accounts)..where((a) => a.id.equals(accountId)))
+    final oldAccount = await getAccountById(accountId);
+    final rows = await (_db.delete(_db.accounts)..where((a) => a.id.equals(accountId)))
         .go();
+
+    if (rows > 0) {
+      await _logChange(
+        entityType: 'Account',
+        entityId: accountId,
+        action: 'DELETE',
+        oldValue: oldAccount != null ? _accountToMap(oldAccount) : null,
+        description: 'Deleted account: ${oldAccount?.name}',
+      );
+    }
+
+    return rows;
+  }
+
+  // -- Audit Log Helpers --
+
+  Map<String, dynamic> _accountToMap(Account row) {
+    return {
+      'id': row.id,
+      'name': row.name,
+      'balance': row.balance,
+      'type': row.type,
+      'isArchived': row.isArchived,
+      'userId': row.userId,
+    };
+  }
+
+  Map<String, dynamic> _companionToMap(AccountsCompanion c) {
+    return {
+      if (c.name.present) 'name': c.name.value,
+      if (c.balance.present) 'balance': c.balance.value,
+      if (c.type.present) 'type': c.type.value,
+      if (c.userId.present) 'userId': c.userId.value,
+    };
+  }
+
+  Future<void> _logChange({
+    required String entityType,
+    required int entityId,
+    required String action,
+    Map<String, dynamic>? oldValue,
+    Map<String, dynamic>? newValue,
+    String? description,
+  }) async {
+    await _db.into(_db.auditLogs).insert(AuditLogsCompanion(
+      entityType: Value(entityType),
+      entityId: Value(entityId),
+      action: Value(action),
+      oldValue: Value(oldValue != null ? jsonEncode(oldValue) : null),
+      newValue: Value(newValue != null ? jsonEncode(newValue) : null),
+      description: Value(description),
+      timestamp: Value(DateTime.now()),
+    ));
   }
 }

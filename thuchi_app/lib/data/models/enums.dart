@@ -3,7 +3,8 @@ enum AccountType {
   cash,
   bank,
   credit,
-  saving_goal;
+  saving_goal,
+  eWallet;
 
   String get displayName {
     switch (this) {
@@ -15,6 +16,8 @@ enum AccountType {
         return 'Thẻ tín dụng';
       case AccountType.saving_goal:
         return 'Quỹ tích lũy';
+      case AccountType.eWallet:
+        return 'Ví điện tử';
     }
   }
 }

@@ -6,8 +6,9 @@ import '../../../providers/privacy_provider.dart';
 import '../../../providers/app_lock_provider.dart';
 import '../categories/category_list_screen.dart';
 import 'sync_settings_screen.dart';
-import '../audit/audit_log_list_screen.dart';
 import '../auth/lock_screen.dart';
+import 'data_management_screen.dart';
+import '../reports/history_screen.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -40,7 +41,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       body: ListView(
         children: [
           // ===== SECURITY SECTION =====
-          _sectionHeader('Bảo mật & Riêng tư'),
+          _sectionHeader(context, 'Bảo mật & Riêng tư'),
           ListTile(
             leading: const Icon(Icons.lock_outline),
             title: Text(_hasPinSet ? 'Đổi mã PIN' : 'Đặt mã PIN'),
@@ -69,26 +70,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           const Divider(),
 
           // ===== DATA SECTION =====
-          _sectionHeader('Dữ liệu'),
+          _sectionHeader(context, 'Dữ liệu'),
           ListTile(
-            leading: const Icon(Icons.backup),
-            title: const Text('Sao lưu dữ liệu (Backup)'),
-            subtitle: const Text('Xuất dữ liệu ra file JSON'),
-            onTap: () async {
-              try {
-                await ref.read(dataServiceProvider).exportToJson();
-              } catch (e) {
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
-                }
-              }
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.restore),
-            title: const Text('Khôi phục dữ liệu (Restore)'),
-            subtitle: const Text('Nhập dữ liệu từ file JSON'),
-            onTap: () => _confirmRestore(context, ref),
+            leading: const Icon(Icons.settings_backup_restore),
+            title: const Text('Quản lý Dữ liệu'),
+            subtitle: const Text('Reset, Snapshots, Backup & Restore'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const DataManagementScreen())),
           ),
           ListTile(
             leading: const Icon(Icons.cloud_sync),
@@ -103,7 +91,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           const Divider(),
 
           // ===== MANAGEMENT SECTION =====
-          _sectionHeader('Quản lý'),
+          _sectionHeader(context, 'Quản lý'),
           ListTile(
             leading: const Icon(Icons.category),
             title: const Text('Quản lý danh mục'),
@@ -114,14 +102,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             leading: const Icon(Icons.history),
             title: const Text('Lịch sử hoạt động (Audit Logs)'),
             trailing: const Icon(Icons.chevron_right),
-            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AuditLogListScreen())),
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const HistoryScreen())),
           ),
         ],
       ),
     );
   }
 
-  Widget _sectionHeader(String title) {
+  Widget _sectionHeader(BuildContext context, String title) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
       child: Text(
