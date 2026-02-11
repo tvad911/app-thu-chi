@@ -7,6 +7,7 @@ import '../../../data/database/app_database.dart';
 import '../../../data/repositories/transaction_repository.dart';
 import '../../../providers/app_providers.dart';
 import 'cashbook_screen.dart';
+import '../transactions/transaction_form_screen.dart' as import_transaction_screen;
 
 class ReportsScreen extends ConsumerStatefulWidget {
   const ReportsScreen({super.key});
@@ -38,7 +39,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     final statsAsync = ref.watch(monthlyCategoryStatsProvider((_selectedDate, _selectedTab, _excludeEvents)));
     final totalsAsync = ref.watch(monthlyTotalsProvider((_selectedDate, _excludeEvents)));
     final dailyAsync = ref.watch(dailyTotalsProvider((_selectedDate, _excludeEvents)));
-    final topAsync = ref.watch(topTransactionsProvider((_selectedDate, _excludeEvents)));
+    // final topAsync = ref.watch(topTransactionsProvider((_selectedDate, _excludeEvents))); // Deprecated
+    final monthlyTransactionsAsync = ref.watch(monthlyTransactionsProvider((_selectedDate, _excludeEvents)));
 
     return Scaffold(
       appBar: AppBar(
@@ -175,14 +177,14 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
             ),
           ),
 
-          // Top Transactions
+          // Monthly Transactions List
           SliverToBoxAdapter(
-            child: topAsync.when(
+            child: monthlyTransactionsAsync.when(
               loading: () => const SizedBox.shrink(),
               error: (_, __) => const SizedBox.shrink(),
-              data: (topTxns) {
-                if (topTxns.isEmpty) return const SizedBox.shrink();
-                return _buildTopTransactions(topTxns);
+              data: (transactions) {
+                if (transactions.isEmpty) return const SizedBox.shrink();
+                return _buildMonthlyTransactionList(transactions);
               },
             ),
           ),
@@ -322,44 +324,125 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     );
   }
 
-  Widget _buildTopTransactions(List<Transaction> transactions) {
+  Widget _buildMonthlyTransactionList(List<TransactionWithDetails> transactions) {
+     // Group by Date
+     final grouped = <DateTime, List<TransactionWithDetails>>{};
+     for (final t in transactions) {
+       final dateKey = DateTime(t.transaction.date.year, t.transaction.date.month, t.transaction.date.day);
+       grouped.putIfAbsent(dateKey, () => []).add(t);
+     }
+     final sortedKeys = grouped.keys.toList()..sort((a, b) => b.compareTo(a));
+
     return Padding(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Top giao dịch', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+          Text('Chi tiết giao dịch', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
-          ...transactions.map((t) {
-            final isExpense = t.type == 'expense';
-            return Card(
-              margin: const EdgeInsets.only(bottom: 6),
-              child: ListTile(
-                dense: true,
-                leading: CircleAvatar(
-                  radius: 16,
-                  backgroundColor: isExpense ? Colors.red.shade50 : Colors.green.shade50,
-                  child: Icon(
-                    isExpense ? Icons.arrow_downward : Icons.arrow_upward,
-                    size: 16,
-                    color: isExpense ? Colors.red : Colors.green,
+          ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: sortedKeys.length,
+            itemBuilder: (context, index) {
+              final date = sortedKeys[index];
+              final txns = grouped[date]!;
+              
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Day Header
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Text(
+                      '${date.day}/${date.month} (${_getDayOfWeek(date.weekday)})',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold, 
+                        color: Colors.grey[700],
+                        fontSize: 13,
+                      ),
+                    ),
                   ),
-                ),
-                title: Text(t.note ?? (isExpense ? 'Chi tiêu' : 'Thu nhập'), maxLines: 1, overflow: TextOverflow.ellipsis),
-                subtitle: Text('${t.date.day}/${t.date.month}/${t.date.year}', style: const TextStyle(fontSize: 11)),
-                trailing: Text(
-                  '${isExpense ? "-" : "+"}${CurrencyUtils.format(t.amount)}',
-                  style: TextStyle(
-                    color: isExpense ? Colors.red : Colors.green,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            );
-          }),
+                  // Transactions
+                  ...txns.map((item) {
+                    final t = item.transaction;
+                    final isExpense = t.type == 'expense';
+                    final isTransfer = t.type == 'transfer';
+                    final color = isExpense ? Colors.red : (isTransfer ? Colors.blue : Colors.green);
+                    
+                    return Card(
+                      margin: const EdgeInsets.only(bottom: 6),
+                      child: ListTile(
+                        dense: true,
+                        leading: CircleAvatar(
+                          radius: 16,
+                          backgroundColor: color.withOpacity(0.1),
+                          child: Icon(
+                            item.category != null
+                              ? IconData(item.category!.iconCodepoint, fontFamily: 'MaterialIcons')
+                              : (isExpense ? Icons.arrow_upward : (isTransfer ? Icons.swap_horiz : Icons.arrow_downward)),
+                            size: 16,
+                            color: color,
+                          ),
+                        ),
+                        title: Text(
+                          t.note ?? item.category?.name ?? (isExpense ? 'Chi tiêu' : (isTransfer ? 'Chuyển khoản' : 'Thu nhập')), 
+                          maxLines: 1, 
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontWeight: FontWeight.w500),
+                        ),
+                        subtitle: Text(
+                          item.account.name + (isTransfer ? ' -> ...' : ''), 
+                          style: const TextStyle(fontSize: 11),
+                        ),
+                        trailing: Text(
+                          '${isExpense ? "-" : (isTransfer ? "" : "+")}${CurrencyUtils.format(t.amount)}',
+                          style: TextStyle(
+                            color: color,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        onTap: () async {
+                           // Edit Transaction
+                           await Navigator.push(
+                             context,
+                             MaterialPageRoute(
+                               builder: (_) => import_transaction_screen.TransactionFormScreen(transaction: item),
+                             ),
+                           );
+                           // Refresh provider is handled in TransactionFormScreen save, 
+                           // but locally in this widget we rely on riverpod stream/future.
+                           // Since we use FutureProvider, we might need to invalidate it if it doesn't auto-watch stream changes.
+                           // transactionRepository.watchRecentTransactions is a Stream, but getTransactionsForMonth is a Future.
+                           // We should invalidate the provider to refresh.
+                           ref.invalidate(monthlyTransactionsProvider);
+                           ref.invalidate(monthlyTotalsProvider);
+                           ref.invalidate(dailyTotalsProvider);
+                           ref.invalidate(monthlyCategoryStatsProvider);
+                        },
+                      ),
+                    );
+                  }),
+                ],
+              );
+            },
+          ),
         ],
       ),
     );
+  }
+
+  String _getDayOfWeek(int day) {
+    switch (day) {
+      case 1: return 'T2';
+      case 2: return 'T3';
+      case 3: return 'T4';
+      case 4: return 'T5';
+      case 5: return 'T6';
+      case 6: return 'T7';
+      case 7: return 'CN';
+      default: return '';
+    }
   }
 
   List<PieChartSectionData> _showingSections(List<CategoryStat> stats, double total) {

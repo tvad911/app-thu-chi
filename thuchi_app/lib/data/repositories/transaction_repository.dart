@@ -353,6 +353,38 @@ class TransactionRepository {
           ..limit(limit))
         .get();
   }
+
+  /// Get all transactions with details for a month
+  Future<List<TransactionWithDetails>> getTransactionsForMonth(int userId, DateTime month, {bool excludeEvents = false}) async {
+    final startOfMonth = DateTime(month.year, month.month, 1);
+    final endOfMonth = DateTime(month.year, month.month + 1, 0, 23, 59, 59);
+
+    final query = _db.select(_db.transactions).join([
+      innerJoin(_db.accounts, _db.accounts.id.equalsExp(_db.transactions.accountId)),
+      leftOuterJoin(_db.categories, _db.categories.id.equalsExp(_db.transactions.categoryId)),
+    ]);
+
+    var condition = _db.transactions.userId.equals(userId) &
+        _db.transactions.date.isBiggerOrEqualValue(startOfMonth) &
+        _db.transactions.date.isSmallerOrEqualValue(endOfMonth);
+    
+    if (excludeEvents) {
+      condition = condition & _db.transactions.eventId.isNull();
+    }
+    
+    query.where(condition);
+    query.orderBy([OrderingTerm.desc(_db.transactions.date)]);
+
+    final rows = await query.get();
+    
+    return rows.map((row) {
+      return TransactionWithDetails(
+        transaction: row.readTable(_db.transactions),
+        account: row.readTable(_db.accounts),
+        category: row.readTableOrNull(_db.categories),
+      );
+    }).toList();
+  }
 }
 
 class CategoryStat {

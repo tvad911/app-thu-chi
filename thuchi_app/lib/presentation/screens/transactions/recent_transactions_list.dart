@@ -6,6 +6,7 @@ import '../../../core/utils/currency_utils.dart';
 import '../../../core/utils/date_utils.dart' as app_date;
 import '../../../data/repositories/transaction_repository.dart';
 import '../../../providers/app_providers.dart';
+import 'transaction_form_screen.dart' as import_transaction_screen;
 
 class RecentTransactionsList extends ConsumerWidget {
   const RecentTransactionsList({super.key});
@@ -155,7 +156,12 @@ class TransactionItem extends StatelessWidget {
         ),
       ),
       onTap: () {
-        // TODO: Navigate to transaction details
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => import_transaction_screen.TransactionFormScreen(transaction: item),
+          ),
+        );
       },
     );
   }

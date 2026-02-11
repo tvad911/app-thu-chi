@@ -34,13 +34,22 @@ void main() {
   setUpAll(() {
     PathProviderPlatform.instance = MockPathProviderPlatform();
     registerFallbackValue(const AsyncValue<void>.data(null));
+    registerFallbackValue(Provider<void>((ref) {}));
   });
 
-  setUp(() {
+  setUp(() async {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     mockRef = MockRef();
     
-    // Mock user
+    // Create actual user in DB for FK constraints
+    await db.into(db.users).insert(UsersCompanion.insert(
+      username: 'testuser',
+      passwordHash: 'hash',
+      displayName: 'Test User',
+      // id will be 1 usually
+    ));
+    
+    // Mock user object matching DB user
     final mockUser = User(
       id: 1, 
       username: 'testuser', 
@@ -66,11 +75,11 @@ void main() {
   group('DataService Reset', () {
     test('resetToDefault clears data and seeds defaults', () async {
       // 1. Setup initial data
-      await db.into(db.accounts).insert(AccountsCompanion.insert(
-        name: 'Old Account',
+      await db.into(db.accounts).insert(AccountsCompanion(
+        name: const Value('Old Account'),
         balance: const Value(100),
-        type: 'bank',
-        userId: 1,
+        type: const Value('bank'),
+        userId: const Value(1),
       ));
       
       // 2. Call reset
@@ -97,12 +106,12 @@ void main() {
   group('SnapshotService', () {
     test('create and restore snapshot', () async {
       // 1. Setup initial data
-      await db.into(db.accounts).insert(AccountsCompanion.insert(
+      await db.into(db.accounts).insert(AccountsCompanion(
         id: const Value(1),
-        name: 'Account A',
+        name: const Value('Account A'),
         balance: const Value(1000),
-        type: 'cash',
-        userId: 1,
+        type: const Value('cash'),
+        userId: const Value(1),
       ));
 
       // 2. Create Snapshot

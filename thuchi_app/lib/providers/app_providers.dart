@@ -231,3 +231,11 @@ final topTransactionsProvider = FutureProvider.family<List<Transaction>, (DateTi
   final (month, excludeEvents) = args;
   return ref.watch(transactionRepositoryProvider).getTopTransactions(user.id, month, excludeEvents: excludeEvents);
 });
+
+/// Get all transactions in a month
+final monthlyTransactionsProvider = FutureProvider.family<List<TransactionWithDetails>, (DateTime, bool)>((ref, args) {
+  final user = ref.watch(currentUserProvider);
+  if (user == null) return [];
+  final (month, excludeEvents) = args;
+  return ref.watch(transactionRepositoryProvider).getTransactionsForMonth(user.id, month, excludeEvents: excludeEvents);
+});

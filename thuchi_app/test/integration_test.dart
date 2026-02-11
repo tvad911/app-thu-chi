@@ -9,11 +9,19 @@ void main() {
   late AppDatabase db;
   late AccountRepository accountRepo;
   late TransactionRepository transactionRepo;
+  late int testUserId;
 
-  setUp(() {
+  setUp(() async {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     accountRepo = AccountRepository(db);
     transactionRepo = TransactionRepository(db, accountRepo);
+
+    // Create a dummy user
+    testUserId = await db.into(db.users).insert(UsersCompanion.insert(
+      username: 'test_user',
+      passwordHash: 'hash',
+      displayName: 'Test User',
+    ));
   });
 
   tearDown(() async {
@@ -27,6 +35,7 @@ void main() {
         name: const Value('Test Wallet'),
         balance: const Value(1000000), // 1.000.000 VND
         type: const Value('cash'),
+        userId: Value(testUserId),
       ),
     );
 
@@ -37,6 +46,7 @@ void main() {
         date: Value(DateTime.now()),
         type: const Value('expense'),
         accountId: Value(accountId),
+        userId: Value(testUserId),
       ),
     );
 
@@ -51,6 +61,7 @@ void main() {
         date: Value(DateTime.now()),
         type: const Value('income'),
         accountId: Value(accountId),
+        userId: Value(testUserId),
       ),
     );
 
@@ -62,17 +73,19 @@ void main() {
   test('Transfer transaction should update both accounts', () async {
     // 1. Create Source and Dest accounts
     final sourceId = await accountRepo.insertAccount(
-      const AccountsCompanion(
-        name: Value('Source'),
-        balance: Value(1000000),
-        type: Value('cash'),
+      AccountsCompanion(
+        name: const Value('Source'),
+        balance: const Value(1000000),
+        type: const Value('cash'),
+        userId: Value(testUserId),
       ),
     );
     final destId = await accountRepo.insertAccount(
-      const AccountsCompanion(
-        name: Value('Dest'),
-        balance: Value(0),
-        type: Value('bank'),
+      AccountsCompanion(
+        name: const Value('Dest'),
+        balance: const Value(0),
+        type: const Value('bank'),
+        userId: Value(testUserId),
       ),
     );
 
@@ -84,6 +97,7 @@ void main() {
         type: const Value('transfer'),
         accountId: Value(sourceId),
         toAccountId: Value(destId),
+        userId: Value(testUserId),
       ),
     );
 

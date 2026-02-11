@@ -12,6 +12,7 @@ import '../../presentation/screens/savings/savings_list_screen.dart';
 import '../../presentation/screens/search/transaction_search_screen.dart';
 import '../../presentation/screens/transactions/transaction_form_screen.dart';
 import '../../providers/auth_provider.dart';
+import '../../core/services/update_service.dart';
 
 class MainScreen extends ConsumerStatefulWidget {
   const MainScreen({super.key});
@@ -31,6 +32,56 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     SavingsListScreen(),
     SettingsScreen(),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+       _checkUpdate();
+    });
+  }
+
+  Future<void> _checkUpdate() async {
+    try {
+      final updateInfo = await ref.read(checkForUpdateProvider.future);
+      if (updateInfo != null && updateInfo.hasUpdate && mounted) {
+        showDialog(
+          context: context,
+          barrierDismissible: false, // Optional: Force user to act? No, let them skip.
+          builder: (context) => AlertDialog(
+            title: const Text('Cập nhật mới'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Phiên bản mới: ${updateInfo.version}'),
+                if (updateInfo.releaseNotes.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  const Text('Nội dung cập nhật:', style: TextStyle(fontWeight: FontWeight.bold)),
+                  Text(updateInfo.releaseNotes),
+                ],
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Để sau'),
+              ),
+              FilledButton(
+                onPressed: () {
+                  ref.read(updateServiceProvider).launchUpdateUrl(updateInfo.downloadUrl);
+                  Navigator.pop(context);
+                },
+                child: const Text('Cập nhật ngay'),
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (e) {
+      // Ignore update errors silently
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
