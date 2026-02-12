@@ -12,6 +12,7 @@ import '../../../providers/app_providers.dart';
 import '../../../providers/auth_provider.dart';
 import '../../widgets/attachment_viewer.dart';
 import '../../widgets/form_keyboard_shortcuts.dart';
+import '../../../data/repositories/transaction_repository.dart';
 
 class TransactionFormScreen extends ConsumerStatefulWidget {
   final Event? initialEvent;
