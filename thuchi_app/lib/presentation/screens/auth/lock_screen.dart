@@ -254,38 +254,45 @@ class _LockScreenState extends ConsumerState<LockScreen> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 48),
       child: Column(
-        children: keys.map((row) {
-          return Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: row.map((key) {
-              if (key.isEmpty) return const SizedBox(width: 72, height: 72);
+        children: [
+          for (var i = 0; i < keys.length; i++) ...[
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: keys[i].map((key) {
+                if (key.isEmpty) return const SizedBox(width: 72, height: 72);
 
-              if (key == 'backspace') {
+                if (key == 'backspace') {
+                  return SizedBox(
+                    width: 72,
+                    height: 72,
+                    child: IconButton(
+                      icon: const Icon(Icons.backspace_outlined),
+                      onPressed: _onBackspace,
+                    ),
+                  );
+                }
+
+                if (key == '0') {
+                    // special handling if needed, otherwise same as numbers
+                }
+
                 return SizedBox(
                   width: 72,
                   height: 72,
-                  child: IconButton(
-                    icon: const Icon(Icons.backspace_outlined),
-                    onPressed: _onBackspace,
+                  child: TextButton(
+                    style: TextButton.styleFrom(
+                      shape: const CircleBorder(),
+                      backgroundColor: theme.colorScheme.surfaceContainerHighest,
+                    ),
+                    onPressed: () => _onDigitPressed(key),
+                    child: Text(key, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
                   ),
                 );
-              }
-
-              return SizedBox(
-                width: 72,
-                height: 72,
-                child: TextButton(
-                  style: TextButton.styleFrom(
-                    shape: const CircleBorder(),
-                    backgroundColor: theme.colorScheme.surfaceContainerHighest,
-                  ),
-                  onPressed: () => _onDigitPressed(key),
-                  child: Text(key, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-                ),
-              );
-            }).toList(),
-          );
-        }).toList(),
+              }).toList(),
+            ),
+            if (i < keys.length - 1) const SizedBox(height: 24),
+          ],
+        ],
       ),
     );
   }

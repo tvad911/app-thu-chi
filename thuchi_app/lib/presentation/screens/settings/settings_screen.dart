@@ -9,6 +9,7 @@ import 'sync_settings_screen.dart';
 import '../auth/lock_screen.dart';
 import 'data_management_screen.dart';
 import '../reports/history_screen.dart';
+import 'about_screen.dart'; // Add import
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -45,7 +46,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ListTile(
             leading: const Icon(Icons.lock_outline),
             title: Text(_hasPinSet ? 'Đổi mã PIN' : 'Đặt mã PIN'),
-            subtitle: Text(_hasPinSet ? 'Thay đổi mã khóa ứng dụng' : 'Bảo vệ ứng dụng bằng mã PIN'),
+            subtitle: Text(_hasPinSet
+                ? 'Thay đổi mã khóa ứng dụng'
+                : 'Bảo vệ ứng dụng bằng mã PIN'),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => _handlePinSetup(context),
           ),
@@ -76,7 +79,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             title: const Text('Quản lý Dữ liệu'),
             subtitle: const Text('Reset, Snapshots, Backup & Restore'),
             trailing: const Icon(Icons.chevron_right),
-            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const DataManagementScreen())),
+            onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => const DataManagementScreen())),
           ),
           ListTile(
             leading: const Icon(Icons.cloud_sync),
@@ -84,7 +90,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             subtitle: const Text('Google Drive / S3 Storage'),
             trailing: const Icon(Icons.chevron_right),
             onTap: () {
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const SyncSettingsScreen()));
+              Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const SyncSettingsScreen()));
             },
           ),
 
@@ -96,13 +105,28 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             leading: const Icon(Icons.category),
             title: const Text('Quản lý danh mục'),
             trailing: const Icon(Icons.chevron_right),
-            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CategoryListScreen())),
+            onTap: () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const CategoryListScreen())),
           ),
           ListTile(
             leading: const Icon(Icons.history),
             title: const Text('Lịch sử hoạt động (Audit Logs)'),
             trailing: const Icon(Icons.chevron_right),
-            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const HistoryScreen())),
+            onTap: () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const HistoryScreen())),
+          ),
+
+          const Divider(),
+
+          // ===== INFO SECTION =====
+          _sectionHeader(context, 'Thông tin'),
+          ListTile(
+            leading: const Icon(Icons.info_outline),
+            title: const Text('Về ứng dụng'),
+            subtitle: const Text('Phiên bản & Cập nhật'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const AboutScreen())),
           ),
         ],
       ),
@@ -181,7 +205,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 await ref.read(dataServiceProvider).importFromJson();
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Khôi phục dữ liệu thành công!')),
+                    const SnackBar(
+                        content: Text('Khôi phục dữ liệu thành công!')),
                   );
                 }
               } catch (e) {

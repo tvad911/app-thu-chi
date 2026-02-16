@@ -225,6 +225,10 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen> w
       ref.invalidate(recentTransactionsProvider);
       ref.invalidate(totalBalanceProvider);
       ref.invalidate(accountsProvider);
+      ref.invalidate(monthlyTransactionsProvider);
+      ref.invalidate(monthlyTotalsProvider);
+      ref.invalidate(dailyTotalsProvider);
+      ref.invalidate(monthlyCategoryStatsProvider);
 
       if (mounted) {
         Navigator.pop(context);
