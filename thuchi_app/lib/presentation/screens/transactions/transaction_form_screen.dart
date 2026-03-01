@@ -104,7 +104,6 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen> w
 
   Future<void> _saveTransaction() async {
     if (_isSaving) return;
-    setState(() => _isSaving = true);
 
     final amount = CurrencyUtils.parse(_amountController.text);
     if (amount == null || amount <= 0) {
@@ -142,6 +141,8 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen> w
         return;
       }
     }
+
+    setState(() => _isSaving = true);
 
     try {
       final repo = ref.read(transactionRepositoryProvider);
