@@ -21,14 +21,14 @@ Tùy vào nền tảng bạn muốn phát hành (Android, Linux, Web...), hãy t
 ## 1. Build cho Android
 **Tạo file APK:** Đây là file cài đặt thông dụng nhất. Bạn có thể tải file này thẳng lên mục **Release** của GitHub để người khác có thể tải về và cài đặt ngay trên điện thoại Android của họ.
 ```bash
-flutter build apk --release
+flutter build apk --release --no-tree-shake-icons
 ```
 *Đường dẫn file sau khi hoàn tất:* `build/app/outputs/flutter-apk/app-release.apk`
 *(Lấy file `app-release.apk` này upload lên Github Release)*
 
 **Tạo định dạng App Bundle (.aab):** Sử dụng chuẩn nén này nếu mục đích của bạn là đẩy ứng dụng lên cửa hàng **Google Play Store**.
 ```bash
-flutter build appbundle --release
+flutter build appbundle --release --no-tree-shake-icons
 ```
 *Đường dẫn file sau khi hoàn tất:* `build/app/outputs/bundle/release/app-release.aab`
 
