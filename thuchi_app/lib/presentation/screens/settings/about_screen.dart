@@ -126,18 +126,17 @@ class _AboutScreenState extends State<AboutScreen> {
   Future<void> _launchUpdateUrl() async {
     if (_downloadUrl != null) {
       final uri = Uri.parse(_downloadUrl!);
-      if (await canLaunchUrl(uri)) {
+      try {
         await launchUrl(uri, mode: LaunchMode.externalApplication);
-      } else {
+      } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Không thể mở liên kết cập nhật')),
+            const SnackBar(content: Text('Không thể mở liên kết cập nhật. Vui lòng mở thủ công trên GitHub.')),
           );
         }
       }
     }
   }
-
   @override
   Widget build(BuildContext context) {
     final hasUpdate = _latestVersion != null &&
