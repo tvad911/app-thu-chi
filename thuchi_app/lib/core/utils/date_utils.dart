@@ -34,26 +34,27 @@ class DateUtils {
     return _dayNameFormat.format(date);
   }
 
-  /// Format relative date (Hôm nay, Hôm qua, etc.)
+  /// Format relative date (Hôm nay, Hôm qua, etc.) with date appended
   static String formatRelative(DateTime date) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final targetDate = DateTime(date.year, date.month, date.day);
     
     final difference = today.difference(targetDate).inDays;
+    final dateString = formatFullDate(date);
     
     if (difference == 0) {
-      return 'Hôm nay';
+      return 'Hôm nay, $dateString';
     } else if (difference == 1) {
-      return 'Hôm qua';
+      return 'Hôm qua, $dateString';
     } else if (difference == -1) {
-      return 'Ngày mai';
-    } else if (difference > 0 && difference < 7) {
-      return '$difference ngày trước';
-    } else if (difference < 0 && difference > -7) {
-      return '${-difference} ngày tới';
+      return 'Ngày mai, $dateString';
+    } else if (difference > 0 && difference <= 6) {
+      return '$difference ngày trước, $dateString';
+    } else if (difference < 0 && difference >= -6) {
+      return '${-difference} ngày tới, $dateString';
     } else {
-      return formatFullDate(date);
+      return dateString;
     }
   }
 
