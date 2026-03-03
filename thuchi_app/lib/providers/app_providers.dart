@@ -239,3 +239,18 @@ final monthlyTransactionsProvider = FutureProvider.family<List<TransactionWithDe
   final (month, excludeEvents) = args;
   return ref.watch(transactionRepositoryProvider).getTransactionsForMonth(user.id, month, excludeEvents: excludeEvents);
 });
+
+/// Get expense transactions for a specific category in a budget month
+final budgetTransactionsProvider = FutureProvider.family<
+    List<TransactionWithDetails>,
+    ({int categoryId, int month, int year})>((ref, args) {
+  final user = ref.watch(currentUserProvider);
+  if (user == null) return [];
+  final repo = ref.watch(budgetRepositoryProvider);
+  return repo.getTransactionsForCategory(
+    userId: user.id,
+    categoryId: args.categoryId,
+    month: args.month,
+    year: args.year,
+  );
+});

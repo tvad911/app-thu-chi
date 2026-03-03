@@ -43,7 +43,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.e);
 
   @override
-  int get schemaVersion => 8;
+  int get schemaVersion => 9;
 
   @override
   MigrationStrategy get migration {
@@ -139,6 +139,11 @@ class AppDatabase extends _$AppDatabase {
           await m.createTable(currencies);
           await m.addColumn(accounts, accounts.currencyCode);
           await m.addColumn(accounts, accounts.isHidden);
+        }
+
+        if (from < 9) {
+          // V4: Category color
+          await m.addColumn(categories, categories.color);
         }
       },
     );

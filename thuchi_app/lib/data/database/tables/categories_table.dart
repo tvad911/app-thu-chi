@@ -21,6 +21,9 @@ class Categories extends Table {
   /// Sort order for display
   IntColumn get sortOrder => integer().withDefault(const Constant(0))();
 
+  /// Color for visual identification (hex format, e.g. #FF5733)
+  TextColumn get color => text().nullable()();
+
   /// Whether this is a default category
   BoolColumn get isDefault => boolean().withDefault(const Constant(false))();
   /// Owner ID

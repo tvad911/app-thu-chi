@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 import '../database/app_database.dart';
+import 'transaction_repository.dart';
 
 class BudgetWithCategory {
   final Budget budget;
@@ -88,5 +89,41 @@ class BudgetRepository {
   /// Delete a budget
   Future<int> deleteBudget(int id) {
     return (_db.delete(_db.budgets)..where((t) => t.id.equals(id))).go();
+  }
+
+  /// Get expense transactions for a specific category in a given month/year
+  Future<List<TransactionWithDetails>> getTransactionsForCategory({
+    required int userId,
+    required int categoryId,
+    required int month,
+    required int year,
+  }) async {
+    final start = DateTime(year, month, 1);
+    final end = (month == 12)
+        ? DateTime(year + 1, 1, 1)
+        : DateTime(year, month + 1, 1);
+
+    final query = _db.select(_db.transactions).join([
+      innerJoin(_db.accounts, _db.accounts.id.equalsExp(_db.transactions.accountId)),
+      leftOuterJoin(_db.categories, _db.categories.id.equalsExp(_db.transactions.categoryId)),
+    ]);
+
+    query.where(
+      _db.transactions.userId.equals(userId) &
+      _db.transactions.categoryId.equals(categoryId) &
+      _db.transactions.type.equals('expense') &
+      _db.transactions.date.isBiggerOrEqualValue(start) &
+      _db.transactions.date.isSmallerThanValue(end),
+    );
+    query.orderBy([OrderingTerm.desc(_db.transactions.date)]);
+
+    final rows = await query.get();
+    return rows.map((row) {
+      return TransactionWithDetails(
+        transaction: row.readTable(_db.transactions),
+        account: row.readTable(_db.accounts),
+        category: row.readTableOrNull(_db.categories),
+      );
+    }).toList();
   }
 }

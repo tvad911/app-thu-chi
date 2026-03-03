@@ -926,6 +926,11 @@ class $CategoriesTable extends Categories
       type: DriftSqlType.int,
       requiredDuringInsert: false,
       defaultValue: const Constant(0));
+  static const VerificationMeta _colorMeta = const VerificationMeta('color');
+  @override
+  late final GeneratedColumn<String> color = GeneratedColumn<String>(
+      'color', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _isDefaultMeta =
       const VerificationMeta('isDefault');
   @override
@@ -945,8 +950,17 @@ class $CategoriesTable extends Categories
       defaultConstraints:
           GeneratedColumn.constraintIsAlways('REFERENCES users (id)'));
   @override
-  List<GeneratedColumn> get $columns =>
-      [id, name, type, nature, iconCodepoint, sortOrder, isDefault, userId];
+  List<GeneratedColumn> get $columns => [
+        id,
+        name,
+        type,
+        nature,
+        iconCodepoint,
+        sortOrder,
+        color,
+        isDefault,
+        userId
+      ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -986,6 +1000,10 @@ class $CategoriesTable extends Categories
       context.handle(_sortOrderMeta,
           sortOrder.isAcceptableOrUnknown(data['sort_order']!, _sortOrderMeta));
     }
+    if (data.containsKey('color')) {
+      context.handle(
+          _colorMeta, color.isAcceptableOrUnknown(data['color']!, _colorMeta));
+    }
     if (data.containsKey('is_default')) {
       context.handle(_isDefaultMeta,
           isDefault.isAcceptableOrUnknown(data['is_default']!, _isDefaultMeta));
@@ -1017,6 +1035,8 @@ class $CategoriesTable extends Categories
           .read(DriftSqlType.int, data['${effectivePrefix}icon_codepoint'])!,
       sortOrder: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}sort_order'])!,
+      color: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}color']),
       isDefault: attachedDatabase.typeMapping
           .read(DriftSqlType.bool, data['${effectivePrefix}is_default'])!,
       userId: attachedDatabase.typeMapping
@@ -1049,6 +1069,9 @@ class Category extends DataClass implements Insertable<Category> {
   /// Sort order for display
   final int sortOrder;
 
+  /// Color for visual identification (hex format, e.g. #FF5733)
+  final String? color;
+
   /// Whether this is a default category
   final bool isDefault;
 
@@ -1061,6 +1084,7 @@ class Category extends DataClass implements Insertable<Category> {
       this.nature,
       required this.iconCodepoint,
       required this.sortOrder,
+      this.color,
       required this.isDefault,
       required this.userId});
   @override
@@ -1074,6 +1098,9 @@ class Category extends DataClass implements Insertable<Category> {
     }
     map['icon_codepoint'] = Variable<int>(iconCodepoint);
     map['sort_order'] = Variable<int>(sortOrder);
+    if (!nullToAbsent || color != null) {
+      map['color'] = Variable<String>(color);
+    }
     map['is_default'] = Variable<bool>(isDefault);
     map['user_id'] = Variable<int>(userId);
     return map;
@@ -1088,6 +1115,8 @@ class Category extends DataClass implements Insertable<Category> {
           nature == null && nullToAbsent ? const Value.absent() : Value(nature),
       iconCodepoint: Value(iconCodepoint),
       sortOrder: Value(sortOrder),
+      color:
+          color == null && nullToAbsent ? const Value.absent() : Value(color),
       isDefault: Value(isDefault),
       userId: Value(userId),
     );
@@ -1103,6 +1132,7 @@ class Category extends DataClass implements Insertable<Category> {
       nature: serializer.fromJson<String?>(json['nature']),
       iconCodepoint: serializer.fromJson<int>(json['iconCodepoint']),
       sortOrder: serializer.fromJson<int>(json['sortOrder']),
+      color: serializer.fromJson<String?>(json['color']),
       isDefault: serializer.fromJson<bool>(json['isDefault']),
       userId: serializer.fromJson<int>(json['userId']),
     );
@@ -1117,6 +1147,7 @@ class Category extends DataClass implements Insertable<Category> {
       'nature': serializer.toJson<String?>(nature),
       'iconCodepoint': serializer.toJson<int>(iconCodepoint),
       'sortOrder': serializer.toJson<int>(sortOrder),
+      'color': serializer.toJson<String?>(color),
       'isDefault': serializer.toJson<bool>(isDefault),
       'userId': serializer.toJson<int>(userId),
     };
@@ -1129,6 +1160,7 @@ class Category extends DataClass implements Insertable<Category> {
           Value<String?> nature = const Value.absent(),
           int? iconCodepoint,
           int? sortOrder,
+          Value<String?> color = const Value.absent(),
           bool? isDefault,
           int? userId}) =>
       Category(
@@ -1138,6 +1170,7 @@ class Category extends DataClass implements Insertable<Category> {
         nature: nature.present ? nature.value : this.nature,
         iconCodepoint: iconCodepoint ?? this.iconCodepoint,
         sortOrder: sortOrder ?? this.sortOrder,
+        color: color.present ? color.value : this.color,
         isDefault: isDefault ?? this.isDefault,
         userId: userId ?? this.userId,
       );
@@ -1151,6 +1184,7 @@ class Category extends DataClass implements Insertable<Category> {
           ? data.iconCodepoint.value
           : this.iconCodepoint,
       sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
+      color: data.color.present ? data.color.value : this.color,
       isDefault: data.isDefault.present ? data.isDefault.value : this.isDefault,
       userId: data.userId.present ? data.userId.value : this.userId,
     );
@@ -1165,6 +1199,7 @@ class Category extends DataClass implements Insertable<Category> {
           ..write('nature: $nature, ')
           ..write('iconCodepoint: $iconCodepoint, ')
           ..write('sortOrder: $sortOrder, ')
+          ..write('color: $color, ')
           ..write('isDefault: $isDefault, ')
           ..write('userId: $userId')
           ..write(')'))
@@ -1172,8 +1207,8 @@ class Category extends DataClass implements Insertable<Category> {
   }
 
   @override
-  int get hashCode => Object.hash(
-      id, name, type, nature, iconCodepoint, sortOrder, isDefault, userId);
+  int get hashCode => Object.hash(id, name, type, nature, iconCodepoint,
+      sortOrder, color, isDefault, userId);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1184,6 +1219,7 @@ class Category extends DataClass implements Insertable<Category> {
           other.nature == this.nature &&
           other.iconCodepoint == this.iconCodepoint &&
           other.sortOrder == this.sortOrder &&
+          other.color == this.color &&
           other.isDefault == this.isDefault &&
           other.userId == this.userId);
 }
@@ -1195,6 +1231,7 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
   final Value<String?> nature;
   final Value<int> iconCodepoint;
   final Value<int> sortOrder;
+  final Value<String?> color;
   final Value<bool> isDefault;
   final Value<int> userId;
   const CategoriesCompanion({
@@ -1204,6 +1241,7 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
     this.nature = const Value.absent(),
     this.iconCodepoint = const Value.absent(),
     this.sortOrder = const Value.absent(),
+    this.color = const Value.absent(),
     this.isDefault = const Value.absent(),
     this.userId = const Value.absent(),
   });
@@ -1214,6 +1252,7 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
     this.nature = const Value.absent(),
     this.iconCodepoint = const Value.absent(),
     this.sortOrder = const Value.absent(),
+    this.color = const Value.absent(),
     this.isDefault = const Value.absent(),
     required int userId,
   })  : name = Value(name),
@@ -1226,6 +1265,7 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
     Expression<String>? nature,
     Expression<int>? iconCodepoint,
     Expression<int>? sortOrder,
+    Expression<String>? color,
     Expression<bool>? isDefault,
     Expression<int>? userId,
   }) {
@@ -1236,6 +1276,7 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
       if (nature != null) 'nature': nature,
       if (iconCodepoint != null) 'icon_codepoint': iconCodepoint,
       if (sortOrder != null) 'sort_order': sortOrder,
+      if (color != null) 'color': color,
       if (isDefault != null) 'is_default': isDefault,
       if (userId != null) 'user_id': userId,
     });
@@ -1248,6 +1289,7 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
       Value<String?>? nature,
       Value<int>? iconCodepoint,
       Value<int>? sortOrder,
+      Value<String?>? color,
       Value<bool>? isDefault,
       Value<int>? userId}) {
     return CategoriesCompanion(
@@ -1257,6 +1299,7 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
       nature: nature ?? this.nature,
       iconCodepoint: iconCodepoint ?? this.iconCodepoint,
       sortOrder: sortOrder ?? this.sortOrder,
+      color: color ?? this.color,
       isDefault: isDefault ?? this.isDefault,
       userId: userId ?? this.userId,
     );
@@ -1283,6 +1326,9 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
     if (sortOrder.present) {
       map['sort_order'] = Variable<int>(sortOrder.value);
     }
+    if (color.present) {
+      map['color'] = Variable<String>(color.value);
+    }
     if (isDefault.present) {
       map['is_default'] = Variable<bool>(isDefault.value);
     }
@@ -1301,6 +1347,7 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
           ..write('nature: $nature, ')
           ..write('iconCodepoint: $iconCodepoint, ')
           ..write('sortOrder: $sortOrder, ')
+          ..write('color: $color, ')
           ..write('isDefault: $isDefault, ')
           ..write('userId: $userId')
           ..write(')'))
@@ -7223,6 +7270,7 @@ typedef $$CategoriesTableCreateCompanionBuilder = CategoriesCompanion Function({
   Value<String?> nature,
   Value<int> iconCodepoint,
   Value<int> sortOrder,
+  Value<String?> color,
   Value<bool> isDefault,
   required int userId,
 });
@@ -7233,6 +7281,7 @@ typedef $$CategoriesTableUpdateCompanionBuilder = CategoriesCompanion Function({
   Value<String?> nature,
   Value<int> iconCodepoint,
   Value<int> sortOrder,
+  Value<String?> color,
   Value<bool> isDefault,
   Value<int> userId,
 });
@@ -7327,6 +7376,9 @@ class $$CategoriesTableFilterComposer
 
   ColumnFilters<int> get sortOrder => $composableBuilder(
       column: $table.sortOrder, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get color => $composableBuilder(
+      column: $table.color, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<bool> get isDefault => $composableBuilder(
       column: $table.isDefault, builder: (column) => ColumnFilters(column));
@@ -7443,6 +7495,9 @@ class $$CategoriesTableOrderingComposer
   ColumnOrderings<int> get sortOrder => $composableBuilder(
       column: $table.sortOrder, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get color => $composableBuilder(
+      column: $table.color, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<bool> get isDefault => $composableBuilder(
       column: $table.isDefault, builder: (column) => ColumnOrderings(column));
 
@@ -7493,6 +7548,9 @@ class $$CategoriesTableAnnotationComposer
 
   GeneratedColumn<int> get sortOrder =>
       $composableBuilder(column: $table.sortOrder, builder: (column) => column);
+
+  GeneratedColumn<String> get color =>
+      $composableBuilder(column: $table.color, builder: (column) => column);
 
   GeneratedColumn<bool> get isDefault =>
       $composableBuilder(column: $table.isDefault, builder: (column) => column);
@@ -7614,6 +7672,7 @@ class $$CategoriesTableTableManager extends RootTableManager<
             Value<String?> nature = const Value.absent(),
             Value<int> iconCodepoint = const Value.absent(),
             Value<int> sortOrder = const Value.absent(),
+            Value<String?> color = const Value.absent(),
             Value<bool> isDefault = const Value.absent(),
             Value<int> userId = const Value.absent(),
           }) =>
@@ -7624,6 +7683,7 @@ class $$CategoriesTableTableManager extends RootTableManager<
             nature: nature,
             iconCodepoint: iconCodepoint,
             sortOrder: sortOrder,
+            color: color,
             isDefault: isDefault,
             userId: userId,
           ),
@@ -7634,6 +7694,7 @@ class $$CategoriesTableTableManager extends RootTableManager<
             Value<String?> nature = const Value.absent(),
             Value<int> iconCodepoint = const Value.absent(),
             Value<int> sortOrder = const Value.absent(),
+            Value<String?> color = const Value.absent(),
             Value<bool> isDefault = const Value.absent(),
             required int userId,
           }) =>
@@ -7644,6 +7705,7 @@ class $$CategoriesTableTableManager extends RootTableManager<
             nature: nature,
             iconCodepoint: iconCodepoint,
             sortOrder: sortOrder,
+            color: color,
             isDefault: isDefault,
             userId: userId,
           ),
