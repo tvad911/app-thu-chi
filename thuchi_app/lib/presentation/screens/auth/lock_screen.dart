@@ -252,19 +252,19 @@ class _LockScreenState extends ConsumerState<LockScreen> {
     ];
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 48),
+      padding: const EdgeInsets.symmetric(horizontal: 32),
       child: Column(
         children: [
           for (var i = 0; i < keys.length; i++) ...[
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: keys[i].map((key) {
-                if (key.isEmpty) return const SizedBox(width: 72, height: 72);
+                if (key.isEmpty) return const SizedBox(width: 64, height: 64);
 
                 if (key == 'backspace') {
                   return SizedBox(
-                    width: 72,
-                    height: 72,
+                    width: 64,
+                    height: 64,
                     child: IconButton(
                       icon: const Icon(Icons.backspace_outlined),
                       onPressed: _onBackspace,
@@ -277,8 +277,8 @@ class _LockScreenState extends ConsumerState<LockScreen> {
                 }
 
                 return SizedBox(
-                  width: 72,
-                  height: 72,
+                  width: 64,
+                  height: 64,
                   child: TextButton(
                     style: TextButton.styleFrom(
                       shape: const CircleBorder(),
@@ -290,7 +290,7 @@ class _LockScreenState extends ConsumerState<LockScreen> {
                 );
               }).toList(),
             ),
-            if (i < keys.length - 1) const SizedBox(height: 24),
+            if (i < keys.length - 1) const SizedBox(height: 12),
           ],
         ],
       ),

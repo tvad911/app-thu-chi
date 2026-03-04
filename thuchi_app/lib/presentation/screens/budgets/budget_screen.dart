@@ -31,22 +31,30 @@ class _BudgetScreenState extends ConsumerState<BudgetScreen> {
     });
   }
 
-  /// Fallback — dùng khi category chưa set color
-  Color _getStatusColor(double percentage) {
-    if (percentage >= 1.0) return Colors.red;
-    if (percentage >= 0.8) return Colors.orange;
-    return Colors.green;
-  }
+  /// Bảng màu phong phú cho fallback khi category chưa set color
+  static const _budgetPalette = [
+    Color(0xFF2196F3), // Blue
+    Color(0xFFE91E63), // Pink
+    Color(0xFF9C27B0), // Purple
+    Color(0xFFFF9800), // Orange
+    Color(0xFF009688), // Teal
+    Color(0xFF795548), // Brown
+    Color(0xFF3F51B5), // Indigo
+    Color(0xFFFF5722), // Deep Orange
+    Color(0xFF00BCD4), // Cyan
+    Color(0xFF8BC34A), // Light Green
+  ];
 
-  /// Lấy màu hiển thị của budget item — ưu tiên màu category, fallback status color
-  Color _resolveColor(Category category, double percentage) {
+  /// Lấy màu hiển thị của budget item
+  /// Ưu tiên: category color → palette theo index
+  Color _resolveColor(Category category, int index) {
     final hex = category.color;
     if (hex != null && hex.isNotEmpty) {
       try {
         return Color(int.parse(hex.replaceAll('#', '0xFF')));
       } catch (_) {}
     }
-    return _getStatusColor(percentage);
+    return _budgetPalette[index % _budgetPalette.length];
   }
 
   @override
@@ -127,7 +135,7 @@ class _BudgetScreenState extends ConsumerState<BudgetScreen> {
                   itemBuilder: (context, index) {
                     final item = budgets[index];
                     final percentage = item.usagePercentage;
-                    final color = _resolveColor(item.category, percentage);
+                    final color = _resolveColor(item.category, index);
 
                     return _BudgetCard(
                       item: item,

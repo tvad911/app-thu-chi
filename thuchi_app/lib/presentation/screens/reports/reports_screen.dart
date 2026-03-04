@@ -2,6 +2,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/currency_utils.dart';
 import '../../../data/database/app_database.dart';
 import '../../../data/repositories/transaction_repository.dart';
@@ -368,28 +369,47 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                     final t = item.transaction;
                     final isExpense = t.type == 'expense';
                     final isTransfer = t.type == 'transfer';
-                    final color = isExpense ? Colors.red : (isTransfer ? Colors.blue : Colors.green);
-                    
+                    final colorScheme = Theme.of(context).colorScheme;
+
+                    // Border color: đỏ = chi tiêu, xanh lá = thu nhập, primary = chuyển khoản
+                    final borderColor = isExpense
+                        ? colorScheme.expenseColor
+                        : (isTransfer ? colorScheme.transferColor : colorScheme.incomeColor);
+
+                    // Icon color: ưu tiên màu category
+                    Color iconColor = borderColor;
+                    final catHex = item.category?.color;
+                    if (catHex != null && catHex.isNotEmpty) {
+                      try {
+                        iconColor = Color(int.parse(catHex.replaceAll('#', '0xFF')));
+                      } catch (_) {}
+                    }
+
                     return Card(
                       margin: const EdgeInsets.only(bottom: 6),
                       child: ListTile(
                         dense: true,
-                        leading: CircleAvatar(
-                          radius: 16,
-                          backgroundColor: color.withOpacity(0.1),
+                        leading: Container(
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: iconColor.withValues(alpha: 0.12),
+                            border: Border.all(color: borderColor, width: 2),
+                          ),
                           child: Icon(
                             item.category != null
                               ? IconData(item.category!.iconCodepoint, fontFamily: 'MaterialIcons')
                               : (isExpense ? Icons.arrow_upward : (isTransfer ? Icons.swap_horiz : Icons.arrow_downward)),
                             size: 16,
-                            color: color,
+                            color: iconColor,
                           ),
                         ),
                         title: Text(
                           t.note ?? item.category?.name ?? (isExpense ? 'Chi tiêu' : (isTransfer ? 'Chuyển khoản' : 'Thu nhập')), 
                           maxLines: 1, 
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontWeight: FontWeight.w500),
+                          style: TextStyle(fontWeight: FontWeight.w500, color: borderColor),
                         ),
                         subtitle: Text(
                           item.account.name + (isTransfer ? ' -> ...' : ''), 
@@ -398,23 +418,17 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                         trailing: Text(
                           '${isExpense ? "-" : (isTransfer ? "" : "+")}${CurrencyUtils.format(t.amount)}',
                           style: TextStyle(
-                            color: color,
+                            color: borderColor,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                         onTap: () async {
-                           // Edit Transaction
                            await Navigator.push(
                              context,
                              MaterialPageRoute(
                                builder: (_) => import_transaction_screen.TransactionFormScreen(transaction: item),
                              ),
                            );
-                           // Refresh provider is handled in TransactionFormScreen save, 
-                           // but locally in this widget we rely on riverpod stream/future.
-                           // Since we use FutureProvider, we might need to invalidate it if it doesn't auto-watch stream changes.
-                           // transactionRepository.watchRecentTransactions is a Stream, but getTransactionsForMonth is a Future.
-                           // We should invalidate the provider to refresh.
                            ref.invalidate(monthlyTransactionsProvider);
                            ref.invalidate(monthlyTotalsProvider);
                            ref.invalidate(dailyTotalsProvider);

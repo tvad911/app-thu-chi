@@ -106,43 +106,65 @@ class TransactionItem extends StatelessWidget {
 
   const TransactionItem({super.key, required this.item});
 
+  /// Parse category hex color → Color object
+  Color? _parseCategoryColor(String? hex) {
+    if (hex == null || hex.isEmpty) return null;
+    try {
+      return Color(int.parse(hex.replaceAll('#', '0xFF')));
+    } catch (_) {
+      return null;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = item.transaction;
     final colorScheme = Theme.of(context).colorScheme;
 
-    Color amountColor;
+    // Border color: đỏ = chi tiêu, xanh lá = thu nhập, primary = chuyển khoản
+    Color borderColor;
     String prefix;
-    IconData icon;
+    IconData fallbackIcon;
 
     if (t.type == 'income') {
-      amountColor = colorScheme.incomeColor;
+      borderColor = colorScheme.incomeColor;
       prefix = '+';
-      icon = Icons.arrow_downward;
+      fallbackIcon = Icons.arrow_downward;
     } else if (t.type == 'expense') {
-      amountColor = colorScheme.expenseColor;
+      borderColor = colorScheme.expenseColor;
       prefix = '-';
-      icon = Icons.arrow_upward;
+      fallbackIcon = Icons.arrow_upward;
     } else {
-      amountColor = colorScheme.transferColor;
+      borderColor = colorScheme.transferColor;
       prefix = '';
-      icon = Icons.swap_horiz;
+      fallbackIcon = Icons.swap_horiz;
     }
 
+    // Icon color: ưu tiên màu category, fallback = borderColor
+    final categoryColor = _parseCategoryColor(item.category?.color);
+    final iconColor = categoryColor ?? borderColor;
+
     return ListTile(
-      leading: CircleAvatar(
-        backgroundColor: colorScheme.surfaceContainerHighest,
+      leading: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: iconColor.withValues(alpha: 0.12),
+          border: Border.all(color: borderColor, width: 2),
+        ),
         child: Icon(
           item.category != null
               ? IconData(item.category!.iconCodepoint,
                   fontFamily: 'MaterialIcons')
-              : icon,
-          color: amountColor,
+              : fallbackIcon,
+          color: iconColor,
+          size: 20,
         ),
       ),
       title: Text(
         item.category?.name ?? t.type,
-        style: const TextStyle(fontWeight: FontWeight.bold),
+        style: TextStyle(fontWeight: FontWeight.bold, color: borderColor),
       ),
       subtitle: Text(
         item.account.name,
@@ -150,7 +172,7 @@ class TransactionItem extends StatelessWidget {
       trailing: Text(
         '$prefix${CurrencyUtils.formatVND(t.amount)}',
         style: TextStyle(
-          color: amountColor,
+          color: borderColor,
           fontWeight: FontWeight.bold,
           fontSize: 14,
         ),
