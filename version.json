@@ -1,6 +1,6 @@
 {
-  "version": "1.0.17",
-  "build_number": 17,
+  "version": "1.0.18",
+  "build_number": 18,
   "download_url": "https://github.com/tvad911/app-thu-chi/releases/latest/download/app-release.apk",
-  "release_notes": "Lịch sử giao dịch theo ví, bộ lọc nâng cao Reports, tiết kiệm thêm ghi chú + tùy chọn đáo hạn."
+  "release_notes": "Xóa snapshot, filter danh mục theo loại thu/chi, màu sắc giao dịch ngân sách."
 }

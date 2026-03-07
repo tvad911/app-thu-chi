@@ -599,16 +599,45 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   }
 
   Widget _buildCategoryChips(AsyncValue<List<Category>> expenseAsync, AsyncValue<List<Category>> incomeAsync) {
-    final all = <Category>[];
-    expenseAsync.whenData((cats) => all.addAll(cats));
-    incomeAsync.whenData((cats) => all.addAll(cats));
+    // Determine which categories to show based on _filterType
+    final expenseList = <Category>[];
+    final incomeList = <Category>[];
+    expenseAsync.whenData((cats) => expenseList.addAll(cats));
+    incomeAsync.whenData((cats) => incomeList.addAll(cats));
 
-    if (all.isEmpty) return const SizedBox.shrink();
+    if (expenseList.isEmpty && incomeList.isEmpty) return const SizedBox.shrink();
 
+    // If filtering by specific type, only show relevant categories
+    if (_filterType == 'expense') {
+      return _categoryChipWrap(expenseList);
+    } else if (_filterType == 'income') {
+      return _categoryChipWrap(incomeList);
+    }
+
+    // 'all' or 'transfer': show both groups with labels
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (expenseList.isNotEmpty) ...[
+          Text('Chi tiêu', style: TextStyle(fontSize: 11, color: Colors.red[400], fontWeight: FontWeight.w500)),
+          const SizedBox(height: 4),
+          _categoryChipWrap(expenseList),
+          const SizedBox(height: 8),
+        ],
+        if (incomeList.isNotEmpty) ...[
+          Text('Thu nhập', style: TextStyle(fontSize: 11, color: Colors.green[400], fontWeight: FontWeight.w500)),
+          const SizedBox(height: 4),
+          _categoryChipWrap(incomeList),
+        ],
+      ],
+    );
+  }
+
+  Widget _categoryChipWrap(List<Category> categories) {
     return Wrap(
       spacing: 6,
       runSpacing: 4,
-      children: all.map((cat) {
+      children: categories.map((cat) {
         final selected = _filterCategoryIds.contains(cat.id);
         return FilterChip(
           label: Text(cat.name, style: const TextStyle(fontSize: 11)),

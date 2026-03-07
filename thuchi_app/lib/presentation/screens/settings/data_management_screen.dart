@@ -76,14 +76,43 @@ class DataManagementScreen extends ConsumerWidget {
                     },
                     onDismissed: (direction) {
                       ref.read(snapshotServiceProvider).deleteSnapshot(file);
-                      // Refresh list manually or wait for auto-refresh if provider watches something?
-                      // FutureProvider.autoDispose re-runs on watch, but we need to invalidate it.
                       ref.invalidate(snapshotListProvider);
                     },
                     child: ListTile(
                       leading: const Icon(Icons.restore),
                       title: Text(name),
                       subtitle: Text('${DateFormat('dd/MM/yyyy HH:mm').format(modified)} - ${_formatSize(size)}'),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.restore, color: Colors.blue),
+                            tooltip: 'Khôi phục',
+                            onPressed: () => _confirmRestore(context, ref, file),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.delete_outline, color: Colors.red),
+                            tooltip: 'Xóa',
+                            onPressed: () async {
+                              final confirmed = await showDialog<bool>(
+                                context: context,
+                                builder: (ctx) => AlertDialog(
+                                  title: const Text('Xóa bản sao lưu?'),
+                                  content: Text('Bạn có chắc muốn xóa "$name"?'),
+                                  actions: [
+                                    TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Hủy')),
+                                    TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Xóa', style: TextStyle(color: Colors.red))),
+                                  ],
+                                ),
+                              );
+                              if (confirmed == true) {
+                                ref.read(snapshotServiceProvider).deleteSnapshot(file);
+                                ref.invalidate(snapshotListProvider);
+                              }
+                            },
+                          ),
+                        ],
+                      ),
                       onTap: () => _confirmRestore(context, ref, file),
                     ),
                   );

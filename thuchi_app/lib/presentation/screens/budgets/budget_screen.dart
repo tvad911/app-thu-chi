@@ -559,24 +559,45 @@ class _TransactionTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = item.transaction;
     final date = t.date;
+    final isExpense = t.type == 'expense';
+    final isTransfer = t.type == 'transfer';
+
+    // Border color: green for income, red for expense, blue for transfer
+    final borderColor = isExpense
+        ? const Color(0xFFE53935) // red
+        : (isTransfer ? Colors.blue : const Color(0xFF43A047)); // green
+
+    // Icon color: prefer category color
+    Color iconColor = borderColor;
+    final catHex = item.category?.color;
+    if (catHex != null && catHex.isNotEmpty) {
+      try {
+        iconColor = Color(int.parse(catHex.replaceAll('#', '0xFF')));
+      } catch (_) {}
+    }
 
     return ListTile(
       contentPadding:
           const EdgeInsets.symmetric(horizontal: 0, vertical: 2),
-      leading: CircleAvatar(
-        radius: 18,
-        backgroundColor: color.withValues(alpha: 0.12),
+      leading: Container(
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: iconColor.withValues(alpha: 0.12),
+          border: Border.all(color: borderColor, width: 2),
+        ),
         child: Icon(
           item.category != null
               ? IconData(item.category!.iconCodepoint,
                   fontFamily: 'MaterialIcons')
-              : Icons.arrow_upward,
+              : (isExpense ? Icons.arrow_upward : (isTransfer ? Icons.swap_horiz : Icons.arrow_downward)),
           size: 16,
-          color: color,
+          color: iconColor,
         ),
       ),
       title: Text(
-        t.note ?? item.category?.name ?? 'Chi tiêu',
+        t.note ?? item.category?.name ?? (isExpense ? 'Chi tiêu' : 'Thu nhập'),
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
         style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
@@ -586,9 +607,9 @@ class _TransactionTile extends StatelessWidget {
         style: const TextStyle(fontSize: 11),
       ),
       trailing: Text(
-        '-${CurrencyUtils.formatVND(t.amount)}',
+        '${isExpense ? "-" : (isTransfer ? "" : "+")}${CurrencyUtils.formatVND(t.amount)}',
         style: TextStyle(
-          color: color,
+          color: borderColor,
           fontWeight: FontWeight.bold,
           fontSize: 14,
         ),
