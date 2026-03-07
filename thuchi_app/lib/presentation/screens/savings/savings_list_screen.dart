@@ -184,6 +184,38 @@ class _SavingCard extends ConsumerWidget {
                   ],
                 ),
 
+                // Maturity action label
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Icon(Icons.event_available, size: 14, color: Colors.grey[600]),
+                    const SizedBox(width: 4),
+                    Text(
+                      _maturityActionLabel(item.saving.maturityAction),
+                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                    ),
+                  ],
+                ),
+
+                // Note
+                if (item.saving.note != null && item.saving.note!.isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      Icon(Icons.note, size: 14, color: Colors.grey[500]),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          item.saving.note!,
+                          style: TextStyle(fontSize: 12, color: Colors.grey[600], fontStyle: FontStyle.italic),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+
                 // Settle button
                 if (daysLeft <= 0) ...[
                   const SizedBox(height: 12),
@@ -206,6 +238,15 @@ class _SavingCard extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  String _maturityActionLabel(String action) {
+    switch (action) {
+      case 'SETTLE': return 'Tất toán (nhận lãi + vốn)';
+      case 'RENEW_ALL': return 'Gửi tiếp (lãi + vốn)';
+      case 'RENEW_PRINCIPAL': return 'Gửi tiếp vốn + nhận lãi';
+      default: return action;
+    }
   }
 
   void _editSaving(BuildContext context) {

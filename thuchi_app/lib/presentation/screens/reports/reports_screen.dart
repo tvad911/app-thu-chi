@@ -23,6 +23,13 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   int _touchedIndex = -1;
   bool _excludeEvents = false;
 
+  // Transaction list filters
+  String _filterType = 'all'; // 'all', 'income', 'expense', 'transfer'
+  Set<int> _filterCategoryIds = {};
+  int? _filterAccountId;
+  DateTimeRange? _filterDateRange;
+  bool _showFilters = false;
+
   void _previousMonth() {
     setState(() {
       _selectedDate = DateTime(_selectedDate.year, _selectedDate.month - 1);
@@ -185,7 +192,24 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
               error: (_, __) => const SizedBox.shrink(),
               data: (transactions) {
                 if (transactions.isEmpty) return const SizedBox.shrink();
-                return _buildMonthlyTransactionList(transactions);
+                // Apply client-side filters
+                var filtered = transactions.toList();
+                if (_filterType != 'all') {
+                  filtered = filtered.where((t) => t.transaction.type == _filterType).toList();
+                }
+                if (_filterCategoryIds.isNotEmpty) {
+                  filtered = filtered.where((t) => t.transaction.categoryId != null && _filterCategoryIds.contains(t.transaction.categoryId)).toList();
+                }
+                if (_filterAccountId != null) {
+                  filtered = filtered.where((t) => t.transaction.accountId == _filterAccountId || t.transaction.toAccountId == _filterAccountId).toList();
+                }
+                if (_filterDateRange != null) {
+                  filtered = filtered.where((t) {
+                    final d = t.transaction.date;
+                    return !d.isBefore(_filterDateRange!.start) && !d.isAfter(_filterDateRange!.end.add(const Duration(days: 1)));
+                  }).toList();
+                }
+                return _buildMonthlyTransactionList(filtered);
               },
             ),
           ),
@@ -325,7 +349,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     );
   }
 
-  Widget _buildMonthlyTransactionList(List<TransactionWithDetails> transactions) {
+   Widget _buildMonthlyTransactionList(List<TransactionWithDetails> transactions) {
      // Group by Date
      final grouped = <DateTime, List<TransactionWithDetails>>{};
      for (final t in transactions) {
@@ -339,7 +363,22 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Chi tiết giao dịch', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+          // Header + filter toggle
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Chi tiết giao dịch (${transactions.length})', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+              IconButton(
+                icon: Icon(_showFilters ? Icons.filter_list_off : Icons.filter_list),
+                tooltip: 'Bộ lọc',
+                onPressed: () => setState(() => _showFilters = !_showFilters),
+              ),
+            ],
+          ),
+
+          // Filter panel
+          if (_showFilters) _buildFilterPanel(),
+
           const SizedBox(height: 8),
           ListView.builder(
             shrinkWrap: true,
@@ -443,6 +482,149 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildFilterPanel() {
+    final categoriesAsync = ref.watch(expenseCategoriesProvider);
+    final incomeCategoriesAsync = ref.watch(incomeCategoriesProvider);
+    final accountsAsync = ref.watch(accountsProvider);
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Type filter
+            const Text('Loại giao dịch', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+            const SizedBox(height: 6),
+            SegmentedButton<String>(
+              segments: const [
+                ButtonSegment(value: 'all', label: Text('Tất cả')),
+                ButtonSegment(value: 'income', label: Text('Thu')),
+                ButtonSegment(value: 'expense', label: Text('Chi')),
+                ButtonSegment(value: 'transfer', label: Text('CK')),
+              ],
+              selected: {_filterType},
+              onSelectionChanged: (val) => setState(() => _filterType = val.first),
+              style: const ButtonStyle(visualDensity: VisualDensity.compact),
+            ),
+            const SizedBox(height: 12),
+
+            // Category filter
+            const Text('Danh mục', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+            const SizedBox(height: 6),
+            _buildCategoryChips(categoriesAsync, incomeCategoriesAsync),
+            const SizedBox(height: 12),
+
+            // Account filter
+            const Text('Ví', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+            const SizedBox(height: 6),
+            accountsAsync.when(
+              loading: () => const SizedBox.shrink(),
+              error: (_, __) => const SizedBox.shrink(),
+              data: (accounts) {
+                final validAccounts = accounts.where((a) => a.type != 'SAVING_DEPOSIT').toList();
+                return Wrap(
+                  spacing: 6,
+                  children: [
+                    FilterChip(
+                      label: const Text('Tất cả'),
+                      selected: _filterAccountId == null,
+                      onSelected: (_) => setState(() => _filterAccountId = null),
+                    ),
+                    ...validAccounts.map((a) => FilterChip(
+                      label: Text(a.name),
+                      selected: _filterAccountId == a.id,
+                      onSelected: (sel) => setState(() => _filterAccountId = sel ? a.id : null),
+                    )),
+                  ],
+                );
+              },
+            ),
+            const SizedBox(height: 12),
+
+            // Date range filter
+            Row(
+              children: [
+                const Text('Khoảng ngày', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                const Spacer(),
+                if (_filterDateRange != null)
+                  TextButton(
+                    onPressed: () => setState(() => _filterDateRange = null),
+                    child: const Text('Xóa', style: TextStyle(fontSize: 12)),
+                  ),
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.date_range, size: 16),
+                  label: Text(
+                    _filterDateRange != null
+                        ? '${_filterDateRange!.start.day}/${_filterDateRange!.start.month} - ${_filterDateRange!.end.day}/${_filterDateRange!.end.month}'
+                        : 'Chọn ngày',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                  onPressed: () async {
+                    final range = await showDateRangePicker(
+                      context: context,
+                      firstDate: DateTime(_selectedDate.year, _selectedDate.month, 1),
+                      lastDate: DateTime(_selectedDate.year, _selectedDate.month + 1, 0),
+                      initialDateRange: _filterDateRange,
+                    );
+                    if (range != null) setState(() => _filterDateRange = range);
+                  },
+                ),
+              ],
+            ),
+
+            // Reset all
+            if (_filterType != 'all' || _filterCategoryIds.isNotEmpty || _filterAccountId != null || _filterDateRange != null)
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  icon: const Icon(Icons.clear_all, size: 16),
+                  label: const Text('Xóa tất cả bộ lọc'),
+                  onPressed: () => setState(() {
+                    _filterType = 'all';
+                    _filterCategoryIds = {};
+                    _filterAccountId = null;
+                    _filterDateRange = null;
+                  }),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCategoryChips(AsyncValue<List<Category>> expenseAsync, AsyncValue<List<Category>> incomeAsync) {
+    final all = <Category>[];
+    expenseAsync.whenData((cats) => all.addAll(cats));
+    incomeAsync.whenData((cats) => all.addAll(cats));
+
+    if (all.isEmpty) return const SizedBox.shrink();
+
+    return Wrap(
+      spacing: 6,
+      runSpacing: 4,
+      children: all.map((cat) {
+        final selected = _filterCategoryIds.contains(cat.id);
+        return FilterChip(
+          label: Text(cat.name, style: const TextStyle(fontSize: 11)),
+          selected: selected,
+          visualDensity: VisualDensity.compact,
+          onSelected: (sel) {
+            setState(() {
+              if (sel) {
+                _filterCategoryIds.add(cat.id);
+              } else {
+                _filterCategoryIds.remove(cat.id);
+              }
+            });
+          },
+        );
+      }).toList(),
     );
   }
 

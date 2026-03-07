@@ -254,3 +254,11 @@ final budgetTransactionsProvider = FutureProvider.family<
     year: args.year,
   );
 });
+
+/// Watch all transactions for a specific account
+final accountTransactionsProvider = StreamProvider.family<List<TransactionWithDetails>, int>((ref, accountId) {
+  final user = ref.watch(currentUserProvider);
+  if (user == null) return const Stream.empty();
+  final repo = ref.watch(transactionRepositoryProvider);
+  return repo.watchTransactionsForAccount(user.id, accountId);
+});

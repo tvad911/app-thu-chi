@@ -45,6 +45,8 @@ class SavingRepository {
     required DateTime startDate,
     int? sourceAccountId, // null = initial balance (record only, no transfer)
     required int userId,
+    String? note,
+    String maturityAction = 'SETTLE', // SETTLE, RENEW_ALL, RENEW_PRINCIPAL
   }) async {
     await _db.transaction(() async {
       // 1. Create Saving Account
@@ -72,6 +74,8 @@ class SavingRepository {
         maturityDate: Value(maturityDate),
         expectedInterest: Value(expectedInterest),
         status: Value('ACTIVE'),
+        note: Value(note),
+        maturityAction: Value(maturityAction),
       ));
 
       // 4. Transfer Money from Source -> Saving Account (only if source provided)
@@ -106,6 +110,8 @@ class SavingRepository {
           'sourceAccountId': sourceAccountId,
           'accountId': accountId,
           'isInitialBalance': isInitialBalance,
+          'note': note,
+          'maturityAction': maturityAction,
         },
         description: 'New saving: $name, amount: $amount, term: ${termMonths}m, initialBalance: $isInitialBalance',
       );
@@ -152,6 +158,8 @@ class SavingRepository {
     double? interestRate,
     int? termMonths,
     DateTime? startDate,
+    String? note,
+    String? maturityAction,
   }) async {
     await _db.transaction(() async {
       final saving = await (_db.select(_db.savings)..where((t) => t.id.equals(savingId))).getSingle();
@@ -163,6 +171,8 @@ class SavingRepository {
         'interestRate': saving.interestRate,
         'termMonths': saving.termMonths,
         'startDate': saving.startDate.toIso8601String(),
+        'note': saving.note,
+        'maturityAction': saving.maturityAction,
       };
 
       // Update name on the linked account
@@ -208,6 +218,8 @@ class SavingRepository {
         interestRate: interestRate != null ? Value(interestRate) : const Value.absent(),
         termMonths: termMonths != null ? Value(termMonths) : const Value.absent(),
         startDate: startDate != null ? Value(startDate) : const Value.absent(),
+        note: note != null ? Value(note) : const Value.absent(),
+        maturityAction: maturityAction != null ? Value(maturityAction) : const Value.absent(),
       );
 
       // Recalculate maturity date and expected interest if term, rate, start date, OR AMOUNT changed
@@ -229,6 +241,8 @@ class SavingRepository {
             startDate: startDate != null ? Value(newStart) : const Value.absent(),
             maturityDate: Value(maturityDate),
             expectedInterest: Value(expectedInterest),
+            note: note != null ? Value(note) : const Value.absent(),
+            maturityAction: maturityAction != null ? Value(maturityAction) : const Value.absent(),
           ),
         );
       } else {

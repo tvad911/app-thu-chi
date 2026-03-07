@@ -5,6 +5,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 import 'data_service.dart';
 
+import 'sync_service.dart';
+
 class SnapshotService {
   final DataService _dataService;
   
@@ -38,6 +40,10 @@ class SnapshotService {
     final dir = await _snapshotDir;
     final file = File(p.join(dir.path, fileName));
     await file.writeAsString(jsonString);
+    
+    // Auto sync backup
+    // SyncService will handle checking if sync is enabled
+    await SyncService.syncBackups([file]);
   }
 
   Future<void> restoreSnapshot(File file) async {

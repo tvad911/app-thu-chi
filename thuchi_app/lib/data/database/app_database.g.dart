@@ -4131,6 +4131,19 @@ class $SavingsTable extends Savings with TableInfo<$SavingsTable, Saving> {
       type: DriftSqlType.string,
       requiredDuringInsert: false,
       defaultValue: const Constant('ACTIVE'));
+  static const VerificationMeta _noteMeta = const VerificationMeta('note');
+  @override
+  late final GeneratedColumn<String> note = GeneratedColumn<String>(
+      'note', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _maturityActionMeta =
+      const VerificationMeta('maturityAction');
+  @override
+  late final GeneratedColumn<String> maturityAction = GeneratedColumn<String>(
+      'maturity_action', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('SETTLE'));
   @override
   List<GeneratedColumn> get $columns => [
         id,
@@ -4140,7 +4153,9 @@ class $SavingsTable extends Savings with TableInfo<$SavingsTable, Saving> {
         startDate,
         maturityDate,
         expectedInterest,
-        status
+        status,
+        note,
+        maturityAction
       ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -4203,6 +4218,16 @@ class $SavingsTable extends Savings with TableInfo<$SavingsTable, Saving> {
       context.handle(_statusMeta,
           status.isAcceptableOrUnknown(data['status']!, _statusMeta));
     }
+    if (data.containsKey('note')) {
+      context.handle(
+          _noteMeta, note.isAcceptableOrUnknown(data['note']!, _noteMeta));
+    }
+    if (data.containsKey('maturity_action')) {
+      context.handle(
+          _maturityActionMeta,
+          maturityAction.isAcceptableOrUnknown(
+              data['maturity_action']!, _maturityActionMeta));
+    }
     return context;
   }
 
@@ -4228,6 +4253,10 @@ class $SavingsTable extends Savings with TableInfo<$SavingsTable, Saving> {
           DriftSqlType.double, data['${effectivePrefix}expected_interest'])!,
       status: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}status'])!,
+      note: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}note']),
+      maturityAction: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}maturity_action'])!,
     );
   }
 
@@ -4261,6 +4290,12 @@ class Saving extends DataClass implements Insertable<Saving> {
 
   /// Status: 'ACTIVE' (Đang gửi), 'SETTLED' (Đã tất toán)
   final String status;
+
+  /// Optional note for this saving deposit
+  final String? note;
+
+  /// Action on maturity: 'SETTLE' (Tất toán), 'RENEW_ALL' (Gửi tiếp lãi+vốn), 'RENEW_PRINCIPAL' (Gửi vốn+nhận lãi)
+  final String maturityAction;
   const Saving(
       {required this.id,
       required this.accountId,
@@ -4269,7 +4304,9 @@ class Saving extends DataClass implements Insertable<Saving> {
       required this.startDate,
       required this.maturityDate,
       required this.expectedInterest,
-      required this.status});
+      required this.status,
+      this.note,
+      required this.maturityAction});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -4281,6 +4318,10 @@ class Saving extends DataClass implements Insertable<Saving> {
     map['maturity_date'] = Variable<DateTime>(maturityDate);
     map['expected_interest'] = Variable<double>(expectedInterest);
     map['status'] = Variable<String>(status);
+    if (!nullToAbsent || note != null) {
+      map['note'] = Variable<String>(note);
+    }
+    map['maturity_action'] = Variable<String>(maturityAction);
     return map;
   }
 
@@ -4294,6 +4335,8 @@ class Saving extends DataClass implements Insertable<Saving> {
       maturityDate: Value(maturityDate),
       expectedInterest: Value(expectedInterest),
       status: Value(status),
+      note: note == null && nullToAbsent ? const Value.absent() : Value(note),
+      maturityAction: Value(maturityAction),
     );
   }
 
@@ -4309,6 +4352,8 @@ class Saving extends DataClass implements Insertable<Saving> {
       maturityDate: serializer.fromJson<DateTime>(json['maturityDate']),
       expectedInterest: serializer.fromJson<double>(json['expectedInterest']),
       status: serializer.fromJson<String>(json['status']),
+      note: serializer.fromJson<String?>(json['note']),
+      maturityAction: serializer.fromJson<String>(json['maturityAction']),
     );
   }
   @override
@@ -4323,6 +4368,8 @@ class Saving extends DataClass implements Insertable<Saving> {
       'maturityDate': serializer.toJson<DateTime>(maturityDate),
       'expectedInterest': serializer.toJson<double>(expectedInterest),
       'status': serializer.toJson<String>(status),
+      'note': serializer.toJson<String?>(note),
+      'maturityAction': serializer.toJson<String>(maturityAction),
     };
   }
 
@@ -4334,7 +4381,9 @@ class Saving extends DataClass implements Insertable<Saving> {
           DateTime? startDate,
           DateTime? maturityDate,
           double? expectedInterest,
-          String? status}) =>
+          String? status,
+          Value<String?> note = const Value.absent(),
+          String? maturityAction}) =>
       Saving(
         id: id ?? this.id,
         accountId: accountId ?? this.accountId,
@@ -4344,6 +4393,8 @@ class Saving extends DataClass implements Insertable<Saving> {
         maturityDate: maturityDate ?? this.maturityDate,
         expectedInterest: expectedInterest ?? this.expectedInterest,
         status: status ?? this.status,
+        note: note.present ? note.value : this.note,
+        maturityAction: maturityAction ?? this.maturityAction,
       );
   Saving copyWithCompanion(SavingsCompanion data) {
     return Saving(
@@ -4362,6 +4413,10 @@ class Saving extends DataClass implements Insertable<Saving> {
           ? data.expectedInterest.value
           : this.expectedInterest,
       status: data.status.present ? data.status.value : this.status,
+      note: data.note.present ? data.note.value : this.note,
+      maturityAction: data.maturityAction.present
+          ? data.maturityAction.value
+          : this.maturityAction,
     );
   }
 
@@ -4375,14 +4430,16 @@ class Saving extends DataClass implements Insertable<Saving> {
           ..write('startDate: $startDate, ')
           ..write('maturityDate: $maturityDate, ')
           ..write('expectedInterest: $expectedInterest, ')
-          ..write('status: $status')
+          ..write('status: $status, ')
+          ..write('note: $note, ')
+          ..write('maturityAction: $maturityAction')
           ..write(')'))
         .toString();
   }
 
   @override
   int get hashCode => Object.hash(id, accountId, termMonths, interestRate,
-      startDate, maturityDate, expectedInterest, status);
+      startDate, maturityDate, expectedInterest, status, note, maturityAction);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -4394,7 +4451,9 @@ class Saving extends DataClass implements Insertable<Saving> {
           other.startDate == this.startDate &&
           other.maturityDate == this.maturityDate &&
           other.expectedInterest == this.expectedInterest &&
-          other.status == this.status);
+          other.status == this.status &&
+          other.note == this.note &&
+          other.maturityAction == this.maturityAction);
 }
 
 class SavingsCompanion extends UpdateCompanion<Saving> {
@@ -4406,6 +4465,8 @@ class SavingsCompanion extends UpdateCompanion<Saving> {
   final Value<DateTime> maturityDate;
   final Value<double> expectedInterest;
   final Value<String> status;
+  final Value<String?> note;
+  final Value<String> maturityAction;
   const SavingsCompanion({
     this.id = const Value.absent(),
     this.accountId = const Value.absent(),
@@ -4415,6 +4476,8 @@ class SavingsCompanion extends UpdateCompanion<Saving> {
     this.maturityDate = const Value.absent(),
     this.expectedInterest = const Value.absent(),
     this.status = const Value.absent(),
+    this.note = const Value.absent(),
+    this.maturityAction = const Value.absent(),
   });
   SavingsCompanion.insert({
     this.id = const Value.absent(),
@@ -4425,6 +4488,8 @@ class SavingsCompanion extends UpdateCompanion<Saving> {
     required DateTime maturityDate,
     required double expectedInterest,
     this.status = const Value.absent(),
+    this.note = const Value.absent(),
+    this.maturityAction = const Value.absent(),
   })  : accountId = Value(accountId),
         termMonths = Value(termMonths),
         interestRate = Value(interestRate),
@@ -4440,6 +4505,8 @@ class SavingsCompanion extends UpdateCompanion<Saving> {
     Expression<DateTime>? maturityDate,
     Expression<double>? expectedInterest,
     Expression<String>? status,
+    Expression<String>? note,
+    Expression<String>? maturityAction,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -4450,6 +4517,8 @@ class SavingsCompanion extends UpdateCompanion<Saving> {
       if (maturityDate != null) 'maturity_date': maturityDate,
       if (expectedInterest != null) 'expected_interest': expectedInterest,
       if (status != null) 'status': status,
+      if (note != null) 'note': note,
+      if (maturityAction != null) 'maturity_action': maturityAction,
     });
   }
 
@@ -4461,7 +4530,9 @@ class SavingsCompanion extends UpdateCompanion<Saving> {
       Value<DateTime>? startDate,
       Value<DateTime>? maturityDate,
       Value<double>? expectedInterest,
-      Value<String>? status}) {
+      Value<String>? status,
+      Value<String?>? note,
+      Value<String>? maturityAction}) {
     return SavingsCompanion(
       id: id ?? this.id,
       accountId: accountId ?? this.accountId,
@@ -4471,6 +4542,8 @@ class SavingsCompanion extends UpdateCompanion<Saving> {
       maturityDate: maturityDate ?? this.maturityDate,
       expectedInterest: expectedInterest ?? this.expectedInterest,
       status: status ?? this.status,
+      note: note ?? this.note,
+      maturityAction: maturityAction ?? this.maturityAction,
     );
   }
 
@@ -4501,6 +4574,12 @@ class SavingsCompanion extends UpdateCompanion<Saving> {
     if (status.present) {
       map['status'] = Variable<String>(status.value);
     }
+    if (note.present) {
+      map['note'] = Variable<String>(note.value);
+    }
+    if (maturityAction.present) {
+      map['maturity_action'] = Variable<String>(maturityAction.value);
+    }
     return map;
   }
 
@@ -4514,7 +4593,9 @@ class SavingsCompanion extends UpdateCompanion<Saving> {
           ..write('startDate: $startDate, ')
           ..write('maturityDate: $maturityDate, ')
           ..write('expectedInterest: $expectedInterest, ')
-          ..write('status: $status')
+          ..write('status: $status, ')
+          ..write('note: $note, ')
+          ..write('maturityAction: $maturityAction')
           ..write(')'))
         .toString();
   }
@@ -10210,6 +10291,8 @@ typedef $$SavingsTableCreateCompanionBuilder = SavingsCompanion Function({
   required DateTime maturityDate,
   required double expectedInterest,
   Value<String> status,
+  Value<String?> note,
+  Value<String> maturityAction,
 });
 typedef $$SavingsTableUpdateCompanionBuilder = SavingsCompanion Function({
   Value<int> id,
@@ -10220,6 +10303,8 @@ typedef $$SavingsTableUpdateCompanionBuilder = SavingsCompanion Function({
   Value<DateTime> maturityDate,
   Value<double> expectedInterest,
   Value<String> status,
+  Value<String?> note,
+  Value<String> maturityAction,
 });
 
 final class $$SavingsTableReferences
@@ -10271,6 +10356,13 @@ class $$SavingsTableFilterComposer
 
   ColumnFilters<String> get status => $composableBuilder(
       column: $table.status, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get note => $composableBuilder(
+      column: $table.note, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get maturityAction => $composableBuilder(
+      column: $table.maturityAction,
+      builder: (column) => ColumnFilters(column));
 
   $$AccountsTableFilterComposer get accountId {
     final $$AccountsTableFilterComposer composer = $composerBuilder(
@@ -10326,6 +10418,13 @@ class $$SavingsTableOrderingComposer
   ColumnOrderings<String> get status => $composableBuilder(
       column: $table.status, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get note => $composableBuilder(
+      column: $table.note, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get maturityAction => $composableBuilder(
+      column: $table.maturityAction,
+      builder: (column) => ColumnOrderings(column));
+
   $$AccountsTableOrderingComposer get accountId {
     final $$AccountsTableOrderingComposer composer = $composerBuilder(
         composer: this,
@@ -10376,6 +10475,12 @@ class $$SavingsTableAnnotationComposer
 
   GeneratedColumn<String> get status =>
       $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<String> get note =>
+      $composableBuilder(column: $table.note, builder: (column) => column);
+
+  GeneratedColumn<String> get maturityAction => $composableBuilder(
+      column: $table.maturityAction, builder: (column) => column);
 
   $$AccountsTableAnnotationComposer get accountId {
     final $$AccountsTableAnnotationComposer composer = $composerBuilder(
@@ -10429,6 +10534,8 @@ class $$SavingsTableTableManager extends RootTableManager<
             Value<DateTime> maturityDate = const Value.absent(),
             Value<double> expectedInterest = const Value.absent(),
             Value<String> status = const Value.absent(),
+            Value<String?> note = const Value.absent(),
+            Value<String> maturityAction = const Value.absent(),
           }) =>
               SavingsCompanion(
             id: id,
@@ -10439,6 +10546,8 @@ class $$SavingsTableTableManager extends RootTableManager<
             maturityDate: maturityDate,
             expectedInterest: expectedInterest,
             status: status,
+            note: note,
+            maturityAction: maturityAction,
           ),
           createCompanionCallback: ({
             Value<int> id = const Value.absent(),
@@ -10449,6 +10558,8 @@ class $$SavingsTableTableManager extends RootTableManager<
             required DateTime maturityDate,
             required double expectedInterest,
             Value<String> status = const Value.absent(),
+            Value<String?> note = const Value.absent(),
+            Value<String> maturityAction = const Value.absent(),
           }) =>
               SavingsCompanion.insert(
             id: id,
@@ -10459,6 +10570,8 @@ class $$SavingsTableTableManager extends RootTableManager<
             maturityDate: maturityDate,
             expectedInterest: expectedInterest,
             status: status,
+            note: note,
+            maturityAction: maturityAction,
           ),
           withReferenceMapper: (p0) => p0
               .map((e) =>

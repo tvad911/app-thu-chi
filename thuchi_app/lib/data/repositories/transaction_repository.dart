@@ -385,6 +385,30 @@ class TransactionRepository {
       );
     }).toList();
   }
+
+  /// Watch all transactions for a specific account (as source or destination)
+  Stream<List<TransactionWithDetails>> watchTransactionsForAccount(int userId, int accountId) {
+    final query = _db.select(_db.transactions).join([
+      innerJoin(_db.accounts, _db.accounts.id.equalsExp(_db.transactions.accountId)),
+      leftOuterJoin(_db.categories, _db.categories.id.equalsExp(_db.transactions.categoryId)),
+    ]);
+
+    query.where(
+      _db.transactions.userId.equals(userId) &
+      (_db.transactions.accountId.equals(accountId) | _db.transactions.toAccountId.equals(accountId)),
+    );
+    query.orderBy([OrderingTerm.desc(_db.transactions.date)]);
+
+    return query.watch().map((rows) {
+      return rows.map((row) {
+        return TransactionWithDetails(
+          transaction: row.readTable(_db.transactions),
+          account: row.readTable(_db.accounts),
+          category: row.readTableOrNull(_db.categories),
+        );
+      }).toList();
+    });
+  }
 }
 
 class CategoryStat {

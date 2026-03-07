@@ -5,6 +5,7 @@ import '../../../core/utils/currency_utils.dart';
 import '../../../data/database/app_database.dart';
 import '../../../providers/app_providers.dart';
 import 'account_form_screen.dart';
+import 'account_transactions_screen.dart';
 
 class AccountListScreen extends ConsumerWidget {
   const AccountListScreen({super.key});
@@ -90,18 +91,35 @@ class _AccountListItem extends StatelessWidget {
         ),
         title: Text(account.name, style: const TextStyle(fontWeight: FontWeight.bold)),
         subtitle: Text(_getTypeName(account.type)),
-        trailing: Text(
-          CurrencyUtils.formatVND(account.balance),
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 16,
-          ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              CurrencyUtils.formatVND(account.balance),
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
+            const SizedBox(width: 4),
+            IconButton(
+              icon: const Icon(Icons.edit, size: 18),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => AccountFormScreen(account: account),
+                  ),
+                );
+              },
+            ),
+          ],
         ),
         onTap: () {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (_) => AccountFormScreen(account: account),
+              builder: (_) => AccountTransactionsScreen(account: account),
             ),
           );
         },

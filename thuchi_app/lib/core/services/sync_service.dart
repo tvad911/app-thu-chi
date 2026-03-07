@@ -9,21 +9,13 @@ import 'drive_storage_provider.dart';
 import 's3_storage_provider.dart';
 
 class SyncService {
-  static Future<void> syncPendingAttachments(AppDatabase db) async {
-    print('SyncService: Starting sync...');
-    
-    // 1. Get Config
+  static Future<CloudStorageProvider?> _getProvider() async {
     final prefs = await SharedPreferences.getInstance();
     final providerType = prefs.getString('sync_provider') ?? 'none';
     
-    if (providerType == 'none') {
-      print('SyncService: Sync disabled.');
-      return;
-    }
+    if (providerType == 'none') return null;
 
     CloudStorageProvider? provider;
-    
-    // 2. Init Provider
     if (providerType == 'drive') {
       provider = GoogleDriveProvider();
     } else if (providerType == 's3') {
@@ -34,10 +26,7 @@ class SyncService {
       final bucket = await secureStorage.read(key: 's3_bucket') ?? '';
       final region = await secureStorage.read(key: 's3_region') ?? 'us-east-1';
       
-      if (endpoint.isEmpty || bucket.isEmpty) {
-        print('SyncService: S3 config missing.');
-        return;
-      }
+      if (endpoint.isEmpty || bucket.isEmpty) return null;
       
       provider = S3StorageProvider(S3Config(
         endpoint: endpoint,
@@ -48,16 +37,23 @@ class SyncService {
       ));
     }
 
-    if (provider == null) return;
+    if (provider == null) return null;
 
-    // 3. Authenticate
     final isAuthenticated = await provider.authenticate();
-    if (!isAuthenticated) {
-      print('SyncService: Auth failed for $providerType');
+    if (!isAuthenticated) return null;
+
+    return provider;
+  }
+
+  static Future<void> syncPendingAttachments(AppDatabase db) async {
+    print('SyncService: Starting attachment sync...');
+    
+    final provider = await _getProvider();
+    if (provider == null) {
+      print('SyncService: Sync disabled or auth failed.');
       return;
     }
 
-    // 4. Process Pending Attachments
     final repo = AttachmentRepository(db);
     final pendingItems = await repo.getPendingAttachments();
     
@@ -66,7 +62,7 @@ class SyncService {
       return;
     }
 
-    print('SyncService: Found ${pendingItems.length} pending items.');
+    print('SyncService: Found ${pendingItems.length} pending attachments.');
 
     for (final item in pendingItems) {
       try {
@@ -80,14 +76,20 @@ class SyncService {
           continue;
         }
 
-        final remoteId = await provider.uploadFile(file, item.fileName);
+        // Determine folder based on fileType / extension
+        final isImage = item.fileType.startsWith('image/') || 
+            ['.jpg', '.jpeg', '.png', '.heic'].any((e) => item.fileName.toLowerCase().endsWith(e));
+        final subFolder = isImage ? 'images' : 'documents';
+        final remotePath = 'attachments/$subFolder/${item.fileName}';
+
+        final remoteId = await provider.uploadFile(file, remotePath);
         
         await repo.updateSyncStatus(
           id: item.id,
           status: 'SYNCED',
           driveFileId: remoteId,
         );
-        print('SyncService: Uploaded ${item.fileName} -> $remoteId');
+        print('SyncService: Uploaded ${item.fileName} -> $remoteId (as $remotePath)');
         
       } catch (e) {
         print('SyncService: Error uploading ${item.fileName}: $e');
@@ -97,6 +99,27 @@ class SyncService {
           errorMessage: e.toString(),
         );
       }
+    }
+  }
+
+  static Future<void> syncBackups(List<File> snapshotFiles) async {
+    print('SyncService: Starting backup sync...');
+    
+    final provider = await _getProvider();
+    if (provider == null) {
+      print('SyncService: Sync disabled or auth failed.');
+      return;
+    }
+
+    for (final file in snapshotFiles) {
+       try {
+         final fileName = file.uri.pathSegments.last;
+         final remotePath = 'backups/$fileName';
+         final remoteId = await provider.uploadFile(file, remotePath);
+         print('SyncService: Uploaded backup $fileName -> $remoteId');
+       } catch (e) {
+         print('SyncService: Error uploading backup ${file.path}: $e');
+       }
     }
   }
 }

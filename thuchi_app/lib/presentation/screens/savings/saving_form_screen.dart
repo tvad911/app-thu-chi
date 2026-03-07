@@ -22,10 +22,12 @@ class _SavingFormScreenState extends ConsumerState<SavingFormScreen> {
   final _nameController = TextEditingController();
   final _amountController = TextEditingController();
   final _interestRateController = TextEditingController();
+  final _noteController = TextEditingController();
 
   Account? _sourceAccount;
   DateTime _startDate = DateTime.now();
   int _termMonths = 6;
+  String _maturityAction = 'SETTLE'; // SETTLE, RENEW_ALL, RENEW_PRINCIPAL
   bool _isInitialBalance = false; // V6: record-only mode for pre-existing savings
   bool get _isEdit => widget.existingSaving != null;
 
@@ -41,6 +43,8 @@ class _SavingFormScreenState extends ConsumerState<SavingFormScreen> {
       _interestRateController.text = s.saving.interestRate.toString();
       _termMonths = s.saving.termMonths;
       _startDate = s.saving.startDate;
+      _noteController.text = s.saving.note ?? '';
+      _maturityAction = s.saving.maturityAction;
     }
   }
 
@@ -49,6 +53,7 @@ class _SavingFormScreenState extends ConsumerState<SavingFormScreen> {
     _nameController.dispose();
     _amountController.dispose();
     _interestRateController.dispose();
+    _noteController.dispose();
     super.dispose();
   }
 
@@ -97,6 +102,8 @@ class _SavingFormScreenState extends ConsumerState<SavingFormScreen> {
         startDate: _startDate,
         sourceAccountId: _isInitialBalance ? null : _sourceAccount!.id,
         userId: userId,
+        note: _noteController.text.isEmpty ? null : _noteController.text,
+        maturityAction: _maturityAction,
       );
 
       ref.invalidate(activeSavingsProvider);
@@ -135,6 +142,8 @@ class _SavingFormScreenState extends ConsumerState<SavingFormScreen> {
         interestRate: double.tryParse(_interestRateController.text),
         termMonths: _termMonths,
         startDate: startDateChanged ? _startDate : null,
+        note: _noteController.text.isEmpty ? null : _noteController.text,
+        maturityAction: _maturityAction,
       );
 
       ref.invalidate(activeSavingsProvider);
@@ -341,6 +350,36 @@ class _SavingFormScreenState extends ConsumerState<SavingFormScreen> {
                     ],
                   ),
                 ),
+              ),
+              const SizedBox(height: 24),
+
+              // Note
+              TextFormField(
+                controller: _noteController,
+                decoration: const InputDecoration(
+                  labelText: 'Ghi chú (tùy chọn)',
+                  hintText: 'Ví dụ: Gửi cho con đi học',
+                  prefixIcon: Icon(Icons.note),
+                ),
+                maxLines: 2,
+              ),
+              const SizedBox(height: 16),
+
+              // Maturity Action
+              DropdownButtonFormField<String>(
+                value: _maturityAction,
+                decoration: const InputDecoration(
+                  labelText: 'Khi đáo hạn',
+                  prefixIcon: Icon(Icons.event_available),
+                ),
+                items: const [
+                  DropdownMenuItem(value: 'SETTLE', child: Text('Tất toán (nhận lãi + vốn)')),
+                  DropdownMenuItem(value: 'RENEW_ALL', child: Text('Gửi tiếp (lãi + vốn)')),
+                  DropdownMenuItem(value: 'RENEW_PRINCIPAL', child: Text('Gửi tiếp vốn + nhận lãi')),
+                ],
+                onChanged: (val) {
+                  if (val != null) setState(() => _maturityAction = val);
+                },
               ),
               const SizedBox(height: 24),
 

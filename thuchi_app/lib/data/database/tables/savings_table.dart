@@ -26,4 +26,10 @@ class Savings extends Table {
   
   /// Status: 'ACTIVE' (Đang gửi), 'SETTLED' (Đã tất toán)
   TextColumn get status => text().withDefault(const Constant('ACTIVE'))();
+
+  /// Optional note for this saving deposit
+  TextColumn get note => text().nullable()();
+
+  /// Action on maturity: 'SETTLE' (Tất toán), 'RENEW_ALL' (Gửi tiếp lãi+vốn), 'RENEW_PRINCIPAL' (Gửi vốn+nhận lãi)
+  TextColumn get maturityAction => text().withDefault(const Constant('SETTLE'))();
 }

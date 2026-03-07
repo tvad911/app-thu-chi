@@ -1,6 +1,6 @@
 {
-  "version": "1.0.16",
-  "build_number": 16,
+  "version": "1.0.17",
+  "build_number": 17,
   "download_url": "https://github.com/tvad911/app-thu-chi/releases/latest/download/app-release.apk",
-  "release_notes": "Cải thiện UI: PIN pad gọn hơn, màu sắc ngân sách đa dạng, phân biệt chi tiêu/thu nhập bằng icon + border color."
+  "release_notes": "Lịch sử giao dịch theo ví, bộ lọc nâng cao Reports, tiết kiệm thêm ghi chú + tùy chọn đáo hạn."
 }

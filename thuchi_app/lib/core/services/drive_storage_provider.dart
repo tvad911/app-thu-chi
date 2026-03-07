@@ -76,6 +76,35 @@ class GoogleDriveProvider implements CloudStorageProvider {
     return _appFolderId!;
   }
 
+  Future<String> _getOrCreateFolder(String parentId, String folderName) async {
+    if (_driveApi == null) throw Exception('Drive API not initialized');
+    final q = "'$parentId' in parents and mimeType = 'application/vnd.google-apps.folder' and name = '$folderName' and trashed = false";
+    final fileList = await _driveApi!.files.list(q: q);
+    if (fileList.files?.isNotEmpty == true) {
+      return fileList.files!.first.id!;
+    }
+    final folder = drive.File()
+      ..name = folderName
+      ..parents = [parentId]
+      ..mimeType = 'application/vnd.google-apps.folder';
+    final created = await _driveApi!.files.create(folder);
+    return created.id!;
+  }
+
+  Future<String> _resolveParentFolderId(String remotePath) async {
+    final rootId = await _getOrCreateAppFolder();
+    // Split path to subfolders. e.g. "attachments/images/file.jpg" -> ["attachments", "images", "file.jpg"]
+    final parts = remotePath.split('/');
+    if (parts.length <= 1) return rootId;
+    
+    String currentParent = rootId;
+    for (int i = 0; i < parts.length - 1; i++) {
+        if (parts[i].isEmpty) continue;
+        currentParent = await _getOrCreateFolder(currentParent, parts[i]);
+    }
+    return currentParent;
+  }
+
   @override
   Future<String> uploadFile(File file, String remotePath) async {
     if (_driveApi == null) {
@@ -83,7 +112,7 @@ class GoogleDriveProvider implements CloudStorageProvider {
       if (!success) throw Exception('Drive authentication failed');
     }
     
-    final folderId = await _getOrCreateAppFolder();
+    final folderId = await _resolveParentFolderId(remotePath);
     // Use basename of remotePath as the filename on Drive
     final fileName = p.basename(remotePath); 
     

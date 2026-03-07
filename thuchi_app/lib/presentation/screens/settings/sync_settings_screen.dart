@@ -6,6 +6,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/services/cloud_models.dart';
 import '../../../core/services/drive_storage_provider.dart';
 import '../../../core/services/s3_storage_provider.dart';
+import '../../../core/services/sync_service.dart';
+import '../../../core/services/snapshot_service.dart';
+import '../../../providers/app_providers.dart';
 
 // Providers for state management
 final storageProviderTypeProvider = StateProvider<String>((ref) => 'none'); // 'none', 'drive', 's3'
@@ -154,6 +157,31 @@ class _SyncSettingsScreenState extends ConsumerState<SyncSettingsScreen> {
     }
   }
 
+  Future<void> _manualSync() async {
+    setState(() => _isLoading = true);
+    try {
+      final db = ref.read(databaseProvider);
+      await SyncService.syncPendingAttachments(db);
+
+      final snapshots = await ref.read(snapshotListProvider.future);
+      await SyncService.syncBackups(snapshots);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Đồng bộ hoàn tất!')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Lỗi đồng bộ: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final currentType = ref.watch(storageProviderTypeProvider);
@@ -173,7 +201,7 @@ class _SyncSettingsScreenState extends ConsumerState<SyncSettingsScreen> {
           
           if (currentType != 'none') ...[
             FilledButton.icon(
-              onPressed: _isLoading ? null : () {}, // To be implemented: Manual Sync
+              onPressed: _isLoading ? null : _manualSync,
               icon: const Icon(Icons.sync),
               label: const Text('Đồng bộ ngay'),
             ),
