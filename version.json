@@ -1,6 +1,6 @@
 {
-  "version": "1.0.18",
-  "build_number": 18,
+  "version": "1.0.19",
+  "build_number": 19,
   "download_url": "https://github.com/tvad911/app-thu-chi/releases/latest/download/app-release.apk",
-  "release_notes": "Xóa snapshot, filter danh mục theo loại thu/chi, màu sắc giao dịch ngân sách."
+  "release_notes": "GitHub Actions CI/CD tự động build APK + release. Tổng hợp tài liệu."
 }

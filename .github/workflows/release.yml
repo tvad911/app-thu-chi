@@ -21,7 +21,6 @@ jobs:
             - name: Setup Flutter
               uses: subosito/flutter-action@v2
               with:
-                  flutter-version: "3.19.0" # Or latest stable
                   channel: "stable"
 
             - name: Install Dependencies
@@ -32,7 +31,7 @@ jobs:
             - name: Build APK
               run: |
                   cd thuchi_app
-                  flutter build apk --release
+                  flutter build apk --release --no-tree-shake-icons
 
             - name: Upload APK Artifact
               uses: actions/upload-artifact@v4
@@ -40,49 +39,9 @@ jobs:
                   name: app-release-apk
                   path: thuchi_app/build/app/outputs/flutter-apk/app-release.apk
 
-    build-linux:
-        name: Build Linux
-        runs-on: ubuntu-latest
-        steps:
-            - uses: actions/checkout@v4
-
-            - name: Install Linux Dependencies
-              run: |
-                  sudo apt-get update
-                  sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev libstdc++-12-dev
-
-            - name: Setup Flutter
-              uses: subosito/flutter-action@v2
-              with:
-                  flutter-version: "3.19.0"
-                  channel: "stable"
-
-            - name: Install Dependencies
-              run: |
-                  cd thuchi_app
-                  flutter pub get
-
-            - name: Build Linux Release
-              run: |
-                  cd thuchi_app
-                  flutter config --enable-linux-desktop
-                  flutter build linux --release
-
-            - name: Compress Linux Bundle
-              run: |
-                  cd thuchi_app/build/linux/x64/release/bundle
-                  tar -czvf thuchi-linux-x64.tar.gz .
-                  mv thuchi-linux-x64.tar.gz ../../../../../
-
-            - name: Upload Linux Artifact
-              uses: actions/upload-artifact@v4
-              with:
-                  name: linux-bundle
-                  path: thuchi_app/thuchi-linux-x64.tar.gz
-
     release:
         name: Create Release
-        needs: [build-android, build-linux]
+        needs: [build-android]
         runs-on: ubuntu-latest
         permissions:
             contents: write
@@ -94,17 +53,28 @@ jobs:
               with:
                   name: app-release-apk
 
-            - name: Download Linux Bundle
-              uses: actions/download-artifact@v4
-              with:
-                  name: linux-bundle
+            - name: Get tag name
+              id: tag
+              run: echo "TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+            - name: Read release notes
+              id: notes
+              run: |
+                  TAG="${{ steps.tag.outputs.TAG }}"
+                  FILE="release/${TAG}.md"
+                  if [ -f "$FILE" ]; then
+                    echo "BODY<<EOF" >> $GITHUB_OUTPUT
+                    cat "$FILE" >> $GITHUB_OUTPUT
+                    echo "EOF" >> $GITHUB_OUTPUT
+                  else
+                    echo "BODY=Release $TAG" >> $GITHUB_OUTPUT
+                  fi
 
             - name: Create GitHub Release
-              uses: softprops/action-gh-release@v1
+              uses: softprops/action-gh-release@v2
               with:
-                  files: |
-                      app-release.apk
-                      thuchi-linux-x64.tar.gz
+                  files: app-release.apk
+                  body: ${{ steps.notes.outputs.BODY }}
                   draft: false
                   prerelease: false
               env:
