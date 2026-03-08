@@ -28,7 +28,16 @@ class FileStorageService {
     final ext = p.extension(sourceFile.path).toLowerCase();
     final isImage = ['.jpg', '.jpeg', '.png', '.heic'].contains(ext);
     
-    final fileName = '${_uuid.v4()}$ext'; // Random unique filename
+    final now = DateTime.now();
+    final timeStr = '${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}_${now.hour.toString().padLeft(2, '0')}${now.minute.toString().padLeft(2, '0')}${now.second.toString().padLeft(2, '0')}';
+    
+    String originalName = p.basenameWithoutExtension(sourceFile.path);
+    originalName = originalName.replaceAll(RegExp(r'[^a-zA-Z0-9_\-]'), '_');
+    if (originalName.length > 30) originalName = originalName.substring(0, 30);
+    
+    final shortUuid = _uuid.v4().substring(0, 4);
+    final fileName = '${timeStr}_${originalName}_$shortUuid$ext'; // Meaningful and unique filename
+    
     final attachmentsDir = await _attachmentsDir;
     final targetPath = p.join(attachmentsDir.path, fileName);
     

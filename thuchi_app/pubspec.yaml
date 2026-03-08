@@ -1,7 +1,7 @@
 name: thuchi_app
 description: "Ứng dụng quản lý tài chính cá nhân - Personal Finance Manager"
 publish_to: "none"
-version: 1.0.23+23
+version: 1.0.24+24
 
 environment:
   sdk: ">=3.0.0 <4.0.0"

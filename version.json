@@ -1,6 +1,6 @@
 {
-  "version": "1.0.23",
-  "build_number": 23,
+  "version": "1.0.24",
+  "build_number": 24,
   "download_url": "https://github.com/tvad911/app-thu-chi/releases/latest/download/app-release.apk",
-  "release_notes": "Sửa lỗi không lưu được file đính kèm khi Cập nhật giao dịch cũ; khắc phục triệt để lỗi ảnh bị ẩn và không đồng bộ được lên Drive do không lưu được xuống CSDL."
+  "release_notes": "Tối ưu hóa tên tệp đính kèm để dễ quản lý (kết hợp thời gian và tên gốc), giúp tra cứu file dễ dàng trên cả thiết bị và Cloud."
 }
