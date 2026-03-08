@@ -85,6 +85,9 @@
 ## 📸 Screenshots
 *(Đang cập nhật)*
 
+## 📦 Tải về (Download)
+- Bạn có thể tải file cài đặt APK phiên bản mới nhất tại: **[Releases Page](https://github.com/tvad911/app-thu-chi/releases/latest)**
+
 ## 📦 Cài đặt & Phát triển
 
 ### Yêu cầu
@@ -99,7 +102,8 @@ git clone git@github.com:tvad911/app-thu-chi.git
 # Vào thư mục project
 cd app-thu-chi
 
-# Cài đặt dependencies
+# Cài đặt dependencies (vào thư mục flutter source)
+cd thuchi_app
 flutter pub get
 
 # Chạy App (Chọn thiết bị)
@@ -108,6 +112,10 @@ flutter run
 
 ## 🤝 Đóng góp
 Mọi đóng góp (Pull Request) đều được hoan nghênh. Vui lòng mở Issue nếu bạn tìm thấy lỗi.
+
+## 📄 Thông tin ứng dụng
+- **[Chính sách quyền riêng tư (Privacy Policy)](PRIVACY_POLICY.md)**
+- **[Điều khoản dịch vụ (Terms of Service)](TERMS_OF_SERVICE.md)**
 
 ## 📄 License
 MIT License.
