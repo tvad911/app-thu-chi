@@ -1,6 +1,6 @@
 {
-  "version": "1.0.19",
-  "build_number": 19,
+  "version": "1.0.20",
+  "build_number": 20,
   "download_url": "https://github.com/tvad911/app-thu-chi/releases/latest/download/app-release.apk",
-  "release_notes": "GitHub Actions CI/CD tự động build APK + release. Tổng hợp tài liệu."
+  "release_notes": "Sẵn sàng đồng bộ trực tiếp Cloud qua Google Drive."
 }
