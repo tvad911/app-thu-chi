@@ -63,6 +63,24 @@
 
 ## 📅 Lịch sử phiên bản (Changelog)
 
+### v1.0.25 — Cải thiện Tiền tố Tên tệp Định kèm
+- Tinh chỉnh tên tệp đính kèm: Đặt mã Giao dịch (Transaction ID) lên đầu theo cấu trúc `tx_ID_Date_Time_Name.ext` giúp việc đối chiếu dữ liệu hình ảnh và giao dịch dễ dàng nhất có thể.
+
+### v1.0.24 — Tối ưu Tên tệp Đồng bộ Cloud
+- Giải quyết rác file khi sao lưu, thay đổi cách đánh tên không còn dùng UUID hỗn độn đổi sang cấu trúc tường minh bao gồm ngày giờ và tên gốc (`YYYYMMDD_HHMMSS_[Tên_gốc]`). 
+
+### v1.0.23 — Fix Bug Đính kèm Giao dịch
+- Sửa lỗi lưu, hiển thị tệp đính kèm và kích hoạt Background Sync hiệu quả hơn ngay khi chỉnh sửa giao dịch cũ.
+
+### v1.0.22 — Restore Cloud Backups & Deep Deletion
+- Bổ sung tính năng khôi phục Cloud Backups (Drive/S3). Tính năng Xóa sâu (Deep Deletion): Khi người dùng xóa file hoặc giao dịch thì tự động xóa file trên nền tảng Cloud tương ứng để giải phóng dung lượng rác.
+
+### v1.0.21 — Khắc phục Lỗi hiển thị Đính kèm
+- Xóa mượt giao dịch, sửa lỗi không hiển thị đúng ảnh đính kèm và tinh chỉnh giao diện ảnh preview của tệp.
+
+### v1.0.20 — Đồng bộ Google Drive
+- Kích hoạt cơ sở tính năng sao lưu và tải dữ liệu lên lưu trữ an toàn bằng công nghệ Google Drive.
+
 ### v1.0.19 — CI/CD & Tài liệu
 - **CI/CD Tự động hóa**: Cấu hình đẩy tag Github Actions tự động build APK và publish GitHub Release.
 - Tổng hợp toàn bộ đặc tả chi tiết của ứng dụng vào `specs.md` và tinh gọn các quy trình build thủ công vào file `release.md`.
