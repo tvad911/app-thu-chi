@@ -34,7 +34,9 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen> w
   Account? _selectedToAccount; // For transfer
   Category? _selectedCategory;
   Event? _selectedEvent;
-  List<File> _attachedFiles = [];
+  List<File> _existingAttachedFiles = [];
+  List<File> _newAttachedFiles = [];
+  List<File> _deletedAttachedFiles = [];
   bool _isSaving = false;
 
   @override
@@ -49,6 +51,8 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen> w
       _noteController.text = t.note ?? '';
       _selectedDate = t.date;
       _selectedType = TransactionType.values.firstWhere((e) => e.name == t.type);
+      
+      _loadAttachments();
       
       // Defer setting selectedAccount/Category/Event until data is loaded or in build? 
       // Actually we can just keep IDs and let the UI match them, 
@@ -73,6 +77,29 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen> w
     } else {
       _tabController.index = 1; // Default to Expense
       _selectedEvent = widget.initialEvent;
+    }
+  }
+
+  Future<void> _loadAttachments() async {
+    final attachmentRepo = ref.read(attachmentRepositoryProvider);
+    final fileStorage = ref.read(fileStorageServiceProvider);
+    
+    final attachments = await attachmentRepo.getAttachmentsByTransaction(widget.transaction!.transaction.id);
+    
+    List<File> loadedFiles = [];
+    for (var att in attachments) {
+      if (att.localPath != null) {
+        final file = await fileStorage.getFile(att.localPath!);
+        if (file != null) {
+          loadedFiles.add(file);
+        }
+      }
+    }
+    
+    if (mounted) {
+      setState(() {
+         _existingAttachedFiles = loadedFiles;
+      });
     }
   }
 
@@ -182,15 +209,11 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen> w
         
         // Attachments only for new transactions for now, or need more logic for update
         // Supporting adding attachments on update:
-        if (_attachedFiles.isNotEmpty) {
+        if (_newAttachedFiles.isNotEmpty) {
            final attachmentRepo = ref.read(attachmentRepositoryProvider);
            final fileStorage = ref.read(fileStorageServiceProvider);
            
-           for (final file in _attachedFiles) {
-             // Only upload if it's a new file (not already uploaded). 
-             // But _attachedFiles is List<File>, meaning local files. 
-             // Existing attachments are not loaded into this list yet.
-             // For simplify, we only support adding NEW attachments here.
+           for (final file in _newAttachedFiles) {
              final metadata = await fileStorage.saveFile(file);
              await attachmentRepo.createAttachment(AttachmentsCompanion(
                transactionId: drift.Value(widget.transaction?.transaction.id ?? txId),
@@ -200,6 +223,24 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen> w
                localPath: drift.Value(metadata['localPath']),
                syncStatus: const drift.Value('PENDING'),
              ));
+           }
+        }
+        
+        // Handling deletions
+        if (_deletedAttachedFiles.isNotEmpty && widget.transaction != null) {
+           final attachmentRepo = ref.read(attachmentRepositoryProvider);
+           final attachments = await attachmentRepo.getAttachmentsByTransaction(widget.transaction!.transaction.id);
+           final fileStorage = ref.read(fileStorageServiceProvider);
+           
+           for (final file in _deletedAttachedFiles) {
+              // find the attachment by matching the path
+              for (final att in attachments) {
+                 if (att.localPath != null && file.path.endsWith(att.localPath!)) {
+                    await attachmentRepo.deleteAttachment(att.id);
+                    await fileStorage.deleteFile(att.localPath!);
+                    break;
+                 }
+              }
            }
         }
       }
@@ -245,6 +286,49 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen> w
     }
   }
 
+  Future<void> _deleteTransaction() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Xác nhận xóa'),
+        content: const Text('Bạn có chắc chắn muốn xóa giao dịch này? Hành động này sẽ hoàn trả lại số dư ví tương ứng.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Hủy')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true), 
+            child: const Text('Xóa', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      if (!mounted) return;
+      setState(() => _isSaving = true);
+      try {
+        await ref.read(transactionRepositoryProvider).deleteTransaction(widget.transaction!.transaction.id);
+        
+        ref.invalidate(recentTransactionsProvider);
+        ref.invalidate(totalBalanceProvider);
+        ref.invalidate(accountsProvider);
+        ref.invalidate(monthlyTransactionsProvider);
+        ref.invalidate(monthlyTotalsProvider);
+        ref.invalidate(dailyTotalsProvider);
+        ref.invalidate(monthlyCategoryStatsProvider);
+
+        if (mounted) {
+          Navigator.pop(context);
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
+        }
+      } finally {
+        if (mounted) setState(() => _isSaving = false);
+      }
+    }
+  }
+
   Future<void> _pickFiles() async {
     final result = await FilePicker.platform.pickFiles(
       allowMultiple: true,
@@ -254,7 +338,7 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen> w
 
     if (result != null) {
       setState(() {
-        _attachedFiles.addAll(result.paths.map((path) => File(path!)).toList());
+        _newAttachedFiles.addAll(result.paths.map((path) => File(path!)).toList());
       });
     }
   }
@@ -271,6 +355,13 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen> w
       child: Scaffold(
         appBar: AppBar(
           title: Text(widget.transaction != null ? 'Cập nhật giao dịch' : 'Thêm giao dịch'),
+          actions: [
+            if (widget.transaction != null)
+              IconButton(
+                icon: const Icon(Icons.delete, color: Colors.red),
+                onPressed: _isSaving ? null : _deleteTransaction,
+              ),
+          ],
           bottom: TabBar(
             controller: _tabController,
             tabs: const [
@@ -546,13 +637,18 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen> w
                     ),
                   ],
                 ),
-                if (_attachedFiles.isNotEmpty) ...[
+                if (_existingAttachedFiles.isNotEmpty || _newAttachedFiles.isNotEmpty) ...[
                   const SizedBox(height: 8),
                   AttachmentViewer(
-                    files: _attachedFiles,
+                    files: [..._existingAttachedFiles, ..._newAttachedFiles],
                     onRemove: (file) {
                       setState(() {
-                        _attachedFiles.remove(file);
+                        if (_newAttachedFiles.contains(file)) {
+                           _newAttachedFiles.remove(file);
+                        } else if (_existingAttachedFiles.contains(file)) {
+                           _existingAttachedFiles.remove(file);
+                           _deletedAttachedFiles.add(file);
+                        }
                       });
                     },
                   ),

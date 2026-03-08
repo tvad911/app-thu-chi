@@ -1,6 +1,6 @@
 {
-  "version": "1.0.20",
-  "build_number": 20,
+  "version": "1.0.21",
+  "build_number": 21,
   "download_url": "https://github.com/tvad911/app-thu-chi/releases/latest/download/app-release.apk",
-  "release_notes": "Sẵn sàng đồng bộ trực tiếp Cloud qua Google Drive."
+  "release_notes": "Thêm tính năng xóa giao dịch, sửa lỗi không xem được file đính kèm cũ, xem file hình ảnh đính kèm trực tiếp trong ứng dụng."
 }

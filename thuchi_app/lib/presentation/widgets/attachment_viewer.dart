@@ -48,7 +48,35 @@ class AttachmentViewer extends StatelessWidget {
                   clipBehavior: Clip.none,
                   children: [
                     GestureDetector(
-                      onTap: () => OpenFile.open(file.path),
+                      onTap: () {
+                        if (isImage) {
+                          showDialog(
+                            context: context,
+                            builder: (ctx) => Dialog(
+                              backgroundColor: Colors.transparent,
+                              insetPadding: const EdgeInsets.all(8),
+                              child: Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  InteractiveViewer(
+                                    child: Image.file(file),
+                                  ),
+                                  Positioned(
+                                    top: 10,
+                                    right: 10,
+                                    child: IconButton(
+                                      icon: const Icon(Icons.close, color: Colors.white, size: 30),
+                                      onPressed: () => Navigator.pop(ctx),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        } else {
+                          OpenFile.open(file.path);
+                        }
+                      },
                       child: Container(
                         width: 100,
                         height: 100,
