@@ -8,7 +8,9 @@ import '../../../core/services/drive_storage_provider.dart';
 import '../../../core/services/s3_storage_provider.dart';
 import '../../../core/services/sync_service.dart';
 import '../../../core/services/snapshot_service.dart';
+import '../../../core/services/data_service.dart';
 import '../../../providers/app_providers.dart';
+import 'package:intl/intl.dart';
 
 // Providers for state management
 final storageProviderTypeProvider = StateProvider<String>((ref) => 'none'); // 'none', 'drive', 's3'
@@ -161,10 +163,19 @@ class _SyncSettingsScreenState extends ConsumerState<SyncSettingsScreen> {
     setState(() => _isLoading = true);
     try {
       final db = ref.read(databaseProvider);
+      
+      // Handle deletions first
+      await SyncService.processDeletions();
+
+      // Sync pending up
       await SyncService.syncPendingAttachments(db);
 
+      // Upload local backups
       final snapshots = await ref.read(snapshotListProvider.future);
       await SyncService.syncBackups(snapshots);
+      
+      // Download missing files
+      await SyncService.downloadMissingAttachments(db);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -176,6 +187,104 @@ class _SyncSettingsScreenState extends ConsumerState<SyncSettingsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Lỗi đồng bộ: $e')),
         );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _showCloudBackups() async {
+    setState(() => _isLoading = true);
+    try {
+      final backups = await SyncService.getCloudBackups();
+      if (!mounted) return;
+      
+      if (backups.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Không tìm thấy bản sao lưu nào trên Cloud.')),
+        );
+        return;
+      }
+
+      await showDialog(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: const Text('Sao lưu trên Cloud'),
+            content: SizedBox(
+              width: double.maxFinite,
+              child: ListView.builder(
+                shrinkWrap: true,
+                itemCount: backups.length,
+                itemBuilder: (context, index) {
+                  final b = backups[index];
+                  final size = (b['size'] as int) / 1024;
+                  final time = b['modified'] != null 
+                      ? DateFormat('dd/MM/yyyy HH:mm').format(b['modified'] as DateTime) 
+                      : '';
+                  
+                  return ListTile(
+                    leading: const Icon(Icons.cloud_download),
+                    title: Text(b['name'] as String),
+                    subtitle: Text('$time - ${size.toStringAsFixed(1)} KB'),
+                    onTap: () async {
+                      Navigator.pop(context); // close dialog
+                      await _restoreFromCloud(b['id'] as String, b['name'] as String);
+                    },
+                  );
+                },
+              ),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(context), child: const Text('Đóng')),
+            ],
+          );
+        },
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Lỗi tải danh sách: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _restoreFromCloud(String remoteId, String fileName) async {
+    setState(() => _isLoading = true);
+    try {
+      final file = await SyncService.downloadBackup(remoteId, fileName);
+      if (file != null && mounted) {
+        // Confirmation dialog
+        final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Khôi phục dữ liệu'),
+            content: const Text('Bạn có chắc chắn muốn khôi phục dữ liệu từ bản sao lưu này? Dữ liệu hiện tại trên máy sẽ bị ghi đè!'),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Hủy')),
+              FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Đồng ý')),
+            ],
+          ),
+        );
+        
+        if (confirmed == true) {
+          await ref.read(dataServiceProvider).importFromFile(file);
+          
+          // Then sync missing attachments down
+          final db = ref.read(databaseProvider);
+          await SyncService.downloadMissingAttachments(db);
+          
+          if (mounted) {
+             ScaffoldMessenger.of(context).showSnackBar(
+               const SnackBar(content: Text('Khôi phục dữ liệu và hình ảnh hoàn tất!')),
+             );
+          }
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Lỗi khôi phục: $e')));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -203,7 +312,13 @@ class _SyncSettingsScreenState extends ConsumerState<SyncSettingsScreen> {
             FilledButton.icon(
               onPressed: _isLoading ? null : _manualSync,
               icon: const Icon(Icons.sync),
-              label: const Text('Đồng bộ ngay'),
+              label: const Text('Đồng bộ lên Cloud'),
+            ),
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              onPressed: _isLoading ? null : _showCloudBackups,
+              icon: const Icon(Icons.cloud_download),
+              label: const Text('Khôi phục từ Cloud'),
             ),
             const SizedBox(height: 8),
             const Text(

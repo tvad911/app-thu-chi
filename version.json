@@ -1,6 +1,6 @@
 {
-  "version": "1.0.21",
-  "build_number": 21,
+  "version": "1.0.22",
+  "build_number": 22,
   "download_url": "https://github.com/tvad911/app-thu-chi/releases/latest/download/app-release.apk",
-  "release_notes": "Thêm tính năng xóa giao dịch, sửa lỗi không xem được file đính kèm cũ, xem file hình ảnh đính kèm trực tiếp trong ứng dụng."
+  "release_notes": "Tối ưu đồng bộ Cloud Drive/S3: Khôi phục toàn bộ giao dịch và đính kèm (Sync Down) ở máy mới; phân loại tệp tin tự động thành images/media/documents; triệt để xóa tệp đính kèm cả ở máy và Cloud."
 }

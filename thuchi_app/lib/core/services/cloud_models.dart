@@ -18,6 +18,9 @@ abstract class CloudStorageProvider {
   
   /// Delete a file from remote storage
   Future<void> deleteFile(String remoteId);
+
+  /// List available backup files
+  Future<List<Map<String, dynamic>>> listBackups();
   
   /// Check if currently connected/authenticated
   Future<bool> isConnected();

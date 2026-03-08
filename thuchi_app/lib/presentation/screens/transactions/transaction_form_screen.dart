@@ -13,6 +13,7 @@ import '../../../providers/auth_provider.dart';
 import '../../widgets/attachment_viewer.dart';
 import '../../widgets/form_keyboard_shortcuts.dart';
 import '../../../data/repositories/transaction_repository.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class TransactionFormScreen extends ConsumerStatefulWidget {
   final Event? initialEvent;
@@ -238,30 +239,18 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen> w
                  if (att.localPath != null && file.path.endsWith(att.localPath!)) {
                     await attachmentRepo.deleteAttachment(att.id);
                     await fileStorage.deleteFile(att.localPath!);
+                    if (att.driveFileId != null && att.driveFileId!.isNotEmpty) {
+                       final prefs = await SharedPreferences.getInstance();
+                       final list = prefs.getStringList('deleted_cloud_files') ?? [];
+                       list.add(att.driveFileId!);
+                       await prefs.setStringList('deleted_cloud_files', list);
+                    }
                     break;
                  }
               }
            }
         }
       }
-
-      // Save attachments
-      // logic moved to above block to handle both update/insert
-      // Keeping this empty or removed as it is handled above. 
-      // But wait, the original code had attachment logic AFTER insert.
-      // I combined it into the if/else block above. 
-      // So I should effectively remove this block or integrating it better.
-      // The replacement above ends at line 130 of original, but I pasted attachment logic inside.
-      // The original code has attachment logic from 133 to 147.
-      // My replacement replaced lines 115-130.
-      // So lines 132-151 are still there? NO. 
-      // I need to be careful. usage of txId.
-      // If I replaced up to 130, then 132 `if (_attachedFiles.isNotEmpty)` is still there.
-      // But `txId` is defined inside the blocks now.
-      // So I MUST replace the whole block including attachment logic to avoid scope issues.
-      // Let's refine the ReplacementContent of the previous chunk or this one.
-      // Actually, I should just replace the whole body of _saveTransaction from line 114 to 151.
-      
 
       // Force refresh data
       ref.invalidate(recentTransactionsProvider);
@@ -306,7 +295,26 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen> w
       if (!mounted) return;
       setState(() => _isSaving = true);
       try {
-        await ref.read(transactionRepositoryProvider).deleteTransaction(widget.transaction!.transaction.id);
+        final attachmentRepo = ref.read(attachmentRepositoryProvider);
+        final fileStorageService = ref.read(fileStorageServiceProvider);
+        final txtId = widget.transaction!.transaction.id;
+        
+        // Fetch attachments to delete them from cloud and local storage
+        final attachments = await attachmentRepo.getAttachmentsByTransaction(txtId);
+        
+        await ref.read(transactionRepositoryProvider).deleteTransaction(txtId);
+        
+        for (var att in attachments) {
+          if (att.localPath != null && att.localPath!.isNotEmpty) {
+            await fileStorageService.deleteFile(att.localPath!);
+          }
+          if (att.driveFileId != null && att.driveFileId!.isNotEmpty) {
+            final prefs = await SharedPreferences.getInstance();
+            final list = prefs.getStringList('deleted_cloud_files') ?? [];
+            list.add(att.driveFileId!);
+            await prefs.setStringList('deleted_cloud_files', list);
+          }
+        }
         
         ref.invalidate(recentTransactionsProvider);
         ref.invalidate(totalBalanceProvider);

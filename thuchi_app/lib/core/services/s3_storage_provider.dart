@@ -63,6 +63,29 @@ class S3StorageProvider implements CloudStorageProvider {
   }
 
   @override
+  Future<List<Map<String, dynamic>>> listBackups() async {
+    final list = <Map<String, dynamic>>[];
+    try {
+      final stream = _client.listObjects(config.bucketName, prefix: 'backups/', recursive: true);
+      await for (final chunk in stream) {
+        for (final item in chunk.objects) {
+          if (item.key != null && item.key!.endsWith('.json')) {
+            list.add({
+              'id': item.key!,
+              'name': item.key!.split('/').last,
+              'size': item.size ?? 0,
+              'modified': item.lastModified,
+            });
+          }
+        }
+      }
+    } catch (e) {
+      print('S3 List Backups Error: $e');
+    }
+    return list;
+  }
+
+  @override
   Future<bool> isConnected() async {
     return _isAuthenticated;
   }

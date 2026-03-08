@@ -183,6 +183,35 @@ class GoogleDriveProvider implements CloudStorageProvider {
   }
 
   @override
+  Future<List<Map<String, dynamic>>> listBackups() async {
+    final list = <Map<String, dynamic>>[];
+    try {
+      if (_driveApi == null) {
+        final success = await authenticate();
+        if (!success) return list;
+      }
+      
+      final backupsFolderId = await _resolveParentFolderId('backups/dummy.json'); // It creates or gets backups folder
+      final q = "'$backupsFolderId' in parents and trashed = false and name contains '.json'";
+      final fileList = await _driveApi!.files.list(q: q, $fields: 'files(id, name, size, modifiedTime)');
+      
+      if (fileList.files != null) {
+        for (var file in fileList.files!) {
+          list.add({
+            'id': file.id!,
+            'name': file.name!,
+            'size': int.tryParse(file.size ?? '0') ?? 0,
+            'modified': file.modifiedTime,
+          });
+        }
+      }
+    } catch (e) {
+      print('Drive List Backups Error: $e');
+    }
+    return list;
+  }
+
+  @override
   Future<bool> isConnected() async {
     // Check if sign in is silent possible
     if (_googleSignIn.currentUser == null) {
