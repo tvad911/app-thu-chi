@@ -24,7 +24,7 @@ class FileStorageService {
 
   /// Compress and save an image/file to local storage
   /// Returns the relative path
-  Future<Map<String, dynamic>> saveFile(File sourceFile) async {
+  Future<Map<String, dynamic>> saveFile(File sourceFile, {String? prefix}) async {
     final ext = p.extension(sourceFile.path).toLowerCase();
     final isImage = ['.jpg', '.jpeg', '.png', '.heic'].contains(ext);
     
@@ -36,7 +36,13 @@ class FileStorageService {
     if (originalName.length > 30) originalName = originalName.substring(0, 30);
     
     final shortUuid = _uuid.v4().substring(0, 4);
-    final fileName = '${timeStr}_${originalName}_$shortUuid$ext'; // Meaningful and unique filename
+    
+    String fileName;
+    if (prefix != null && prefix.isNotEmpty) {
+      fileName = '${prefix}_${timeStr}_${originalName}_$shortUuid$ext';
+    } else {
+      fileName = '${timeStr}_${originalName}_$shortUuid$ext';
+    } // Meaningful and unique filename
     
     final attachmentsDir = await _attachmentsDir;
     final targetPath = p.join(attachmentsDir.path, fileName);

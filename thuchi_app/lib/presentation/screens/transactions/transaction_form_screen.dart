@@ -217,7 +217,7 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen> w
          final fileStorage = ref.read(fileStorageServiceProvider);
          
          for (final file in _newAttachedFiles) {
-           final metadata = await fileStorage.saveFile(file);
+           final metadata = await fileStorage.saveFile(file, prefix: 'tx_$targetTxId');
            await attachmentRepo.createAttachment(AttachmentsCompanion(
              transactionId: drift.Value(targetTxId),
              fileName: drift.Value(metadata['fileName']),
