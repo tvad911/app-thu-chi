@@ -176,11 +176,13 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen> w
       final repo = ref.read(transactionRepositoryProvider);
       final userId = ref.read(authProvider).user!.id;
       
+      int targetTxId;
       if (widget.transaction != null) {
+        targetTxId = widget.transaction!.transaction.id;
         // Update existing transaction
         await repo.updateTransaction(
           TransactionsCompanion(
-            id: drift.Value(widget.transaction!.transaction.id),
+            id: drift.Value(targetTxId),
             amount: drift.Value(amount),
             date: drift.Value(_selectedDate),
             type: drift.Value(_selectedType.name),
@@ -194,7 +196,7 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen> w
         );
       } else {
         // Create new transaction
-        final txId = await repo.insertTransaction(
+        targetTxId = await repo.insertTransaction(
           TransactionsCompanion(
             amount: drift.Value(amount),
             date: drift.Value(_selectedDate),
@@ -207,49 +209,48 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen> w
             userId: drift.Value(userId),
           ),
         );
-        
-        // Attachments only for new transactions for now, or need more logic for update
-        // Supporting adding attachments on update:
-        if (_newAttachedFiles.isNotEmpty) {
-           final attachmentRepo = ref.read(attachmentRepositoryProvider);
-           final fileStorage = ref.read(fileStorageServiceProvider);
-           
-           for (final file in _newAttachedFiles) {
-             final metadata = await fileStorage.saveFile(file);
-             await attachmentRepo.createAttachment(AttachmentsCompanion(
-               transactionId: drift.Value(widget.transaction?.transaction.id ?? txId),
-               fileName: drift.Value(metadata['fileName']),
-               fileType: drift.Value(metadata['format']),
-               fileSize: drift.Value(metadata['size']),
-               localPath: drift.Value(metadata['localPath']),
-               syncStatus: const drift.Value('PENDING'),
-             ));
-           }
-        }
-        
-        // Handling deletions
-        if (_deletedAttachedFiles.isNotEmpty && widget.transaction != null) {
-           final attachmentRepo = ref.read(attachmentRepositoryProvider);
-           final attachments = await attachmentRepo.getAttachmentsByTransaction(widget.transaction!.transaction.id);
-           final fileStorage = ref.read(fileStorageServiceProvider);
-           
-           for (final file in _deletedAttachedFiles) {
-              // find the attachment by matching the path
-              for (final att in attachments) {
-                 if (att.localPath != null && file.path.endsWith(att.localPath!)) {
-                    await attachmentRepo.deleteAttachment(att.id);
-                    await fileStorage.deleteFile(att.localPath!);
-                    if (att.driveFileId != null && att.driveFileId!.isNotEmpty) {
-                       final prefs = await SharedPreferences.getInstance();
-                       final list = prefs.getStringList('deleted_cloud_files') ?? [];
-                       list.add(att.driveFileId!);
-                       await prefs.setStringList('deleted_cloud_files', list);
-                    }
-                    break;
-                 }
-              }
-           }
-        }
+      }
+
+      // Handle new attachments
+      if (_newAttachedFiles.isNotEmpty) {
+         final attachmentRepo = ref.read(attachmentRepositoryProvider);
+         final fileStorage = ref.read(fileStorageServiceProvider);
+         
+         for (final file in _newAttachedFiles) {
+           final metadata = await fileStorage.saveFile(file);
+           await attachmentRepo.createAttachment(AttachmentsCompanion(
+             transactionId: drift.Value(targetTxId),
+             fileName: drift.Value(metadata['fileName']),
+             fileType: drift.Value(metadata['format']),
+             fileSize: drift.Value(metadata['size']),
+             localPath: drift.Value(metadata['localPath']),
+             syncStatus: const drift.Value('PENDING'),
+           ));
+         }
+      }
+
+      // Handling deletions
+      if (_deletedAttachedFiles.isNotEmpty && widget.transaction != null) {
+         final attachmentRepo = ref.read(attachmentRepositoryProvider);
+         final attachments = await attachmentRepo.getAttachmentsByTransaction(targetTxId);
+         final fileStorage = ref.read(fileStorageServiceProvider);
+         
+         for (final file in _deletedAttachedFiles) {
+            // find the attachment by matching the path
+            for (final att in attachments) {
+               if (att.localPath != null && file.path.endsWith(att.localPath!)) {
+                  await attachmentRepo.deleteAttachment(att.id);
+                  await fileStorage.deleteFile(att.localPath!);
+                  if (att.driveFileId != null && att.driveFileId!.isNotEmpty) {
+                     final prefs = await SharedPreferences.getInstance();
+                     final list = prefs.getStringList('deleted_cloud_files') ?? [];
+                     list.add(att.driveFileId!);
+                     await prefs.setStringList('deleted_cloud_files', list);
+                  }
+                  break;
+               }
+            }
+         }
       }
 
       // Force refresh data
