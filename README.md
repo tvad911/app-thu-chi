@@ -7,43 +7,72 @@
 
 ## 🚀 Tính năng nổi bật
 
-### 1. Quản lý Thu Chi & Ví
+### 1. Quản lý Ví (Accounts)
+- Hỗ trợ đa dạng loại ví: Tiền mặt, Ngân hàng, Thẻ tín dụng, Tiết kiệm, Quỹ, Ví điện tử.
+- Cho phép chuyển khoản luân chuyển dòng tiền giữa các ví dễ dàng (không tính vào thu/chi).
+- Xem chi tiết lịch sử giao dịch nhanh chóng của từng ví.
+
+### 2. Quản lý Quỹ & Giao dịch (Core)
 - **Ghi chép siêu tốc**: Nhập giao dịch chỉ trong 3 giây.
-- **Phân loại thông minh**:
-    - **Cố định (Fixed)**: Tiền nhà, điện nước, trả góp...
-    - **Không cố định (Variable)**: Ăn uống, mua sắm, giải trí... (Nơi bạn có thể cắt giảm).
-- **Đa nền tảng**: Hỗ trợ ví Tiền mặt, Ngân hàng, Thẻ tín dụng, Ví điện tử.
-- **Chuyển khoản**: Luân chuyển tiền giữa các ví dễ dàng.
+- **Phân loại thông minh**: Tách biệt chi phí **Cố định** (Fixed) và **Không cố định** (Variable) giúp dễ dàng theo dõi và cắt giảm chi tiêu.
 
-### 2. Quản lý Nợ (Debt Management)
-- Theo dõi: "Ai nợ mình" và "Mình nợ ai".
-- Lịch sử trả nợ từng phần.
-- **Nhắc nhở**: Thông báo tự động khi sắp đến hạn trả nợ.
+### 3. Quản lý Nợ (Debts)
+- Ghi nhận chi tiết: "Ai nợ mình" và "Mình nợ ai".
+- Hỗ trợ lịch sử thanh toán nợ từng phần, phân tách rõ ràng phần **trả gốc** và **lãi**.
+- **Nhắc nhở tự động**: Gửi thông báo khi khoản nợ sắp hoặc quá hạn.
 
-### 3. Hóa đơn Định kỳ (Bills)
-- Quản lý các khoản chi lặp lại (Điện, Nước, Internet, Netflix...).
-- Tự động tạo giao dịch khi xác nhận thanh toán.
-- Chu kỳ linh hoạt: Hàng tuần, Hàng tháng, Hàng năm.
+### 4. Tiết kiệm (Savings) & Quỹ Tích Lũy (Goals)
+- Tạo sổ tiết kiệm và ghi nhận lãi suất, kỳ hạn tính toán. Tùy chọn đáo hạn thông minh.
+- Lên kế hoạch tài chính với tiến độ phần trăm % đạt được mục tiêu tích lũy qua "Quỹ". Tiền gửi vào đây được ẩn khỏi ví chi tiêu hàng ngày.
 
-### 4. Đính kèm & Đồng bộ (Attachments & Cloud)
-- **Đính kèm**: Hóa đơn, chứng từ (Ảnh/PDF) vào giao dịch.
-- **Nén ảnh tự động**: Tiết kiệm dung lượng lưu trữ.
-- **Cloud Sync**: 
-    - Hỗ trợ **Google Drive** và **S3 Storage** (MinIO, AWS...).
-    - **Background Sync**: Tự động đồng bộ file ngầm định kỳ (1 giờ/lần) khi có mạng.
-    - **Smart Upload**: Chỉ upload file mới hoặc thay đổi.
+### 5. Ngân sách (Budgets)
+- Giới hạn hạn mức chi tiêu theo tháng + danh mục hiện hành.
+- **Thanh cảnh báo trực quan**: Xanh, Vàng, Đỏ tuỳ theo mức độ rủi ro (>= 80%, >= 100%).
 
-### 5. Giao diện Desktop (Linux/Windows)
-- **Responsive**: Tự động chuyển đổi layout (NavigationRail 2 cột trên màn hình rộng).
-- **Phím tắt (Shortcuts)**:
-    - `Ctrl + N`: Thêm giao dịch nhanh.
-    - `Ctrl + S`: Lưu form.
-    - `Esc`: Thoát/Hủy.
+### 6. Sự kiện (Events / Travel Mode)
+- Gom nhóm chi tiêu trong dịp đặc biệt (như du lịch, tiệc cưới) vào hệ thống ngân sách riêng nhằm tráng bị đội sổ ngân sách của tháng.
 
-### 6. An toàn & Riêng tư
-- **Offline First**: Dữ liệu nằm hoàn toàn trên thiết bị của bạn.
-- **Backup/Restore**: Sao lưu toàn bộ dữ liệu (bao gồm cả Attachments Metadata & Bills) ra file JSON.
-- **Quyền riêng tư**: Không thu thập dữ liệu người dùng.
+### 7. Hóa đơn Định kỳ (Bills)
+- Quản lý các khoản chi lặp lại tự động như Điện, Nước, Internet... (Hàng tuần, tháng, năm).
+- Nhấp xác nhận tự động tạo Expense tránh quên thanh toán.
+
+### 8. Báo cáo & Thống kê (Reports)
+- **Trực quan hóa**: Dashboard đa dạng (Pie Chart, Bar chart) rõ ràng thu/chi trong kì.
+- Lọc nâng cao theo Loại, Danh mục, Ví, Khoảng thời gian. Option ẩn số tiền từ Sự kiện.
+
+### 9. Đính kèm & Đồng bộ (Attachments & Cloud)
+- **Đính kèm file**: Hóa đơn, chứng từ (Ảnh/PDF) vào từng khoản giao dịch.
+- **Nén ảnh khôn khéo**: Tiết kiệm tối đa dung lượng bộ nhớ điện thoại.
+- **Cloud Sync**: Hỗ trợ đồng bộ lên Google Drive và S3 Storage (MinIO).
+- **Smart Background Sync**: Tự động đồng bộ file định kì ngầm ở chế độ chạy nền.
+
+### 10. Tìm kiếm nâng cao (Advanced Search)
+- Tra cứu tiếng việt không dấu đối với Note.
+- Lọc theo số tiền giao dịch chính xác.
+
+### 11. An toàn & Riêng tư (Security)
+- **Offline First**: Mã hóa và thao tác dữ liệu hoàn toàn bằng SQLite ngay trong máy.
+- Khóa bảo mật: Mã PIN, Sinh trắc học (vân tay/Face ID). Chế độ bảo mật "Che số dư" toàn màn hình.
+- **Backup JSON**: Xuất và khôi phục toàn bộ cục dữ liệu qua format JSON.
+
+### 12. Giao diện Desktop (Linux/Windows)
+- Tự động thay đổi layout 2-cột `NavigationRail` đáp ứng responsive trên màn ảnh rộng Desktop.
+- Hỗ trợ hệ thống phím tắt: `Ctrl+N` tạo nhanh, `Ctrl+S` (Save), `Esc` (Dismiss).
+
+---
+
+## 📅 Lịch sử phiên bản (Changelog)
+
+### v1.0.19 — CI/CD & Tài liệu
+- **CI/CD Tự động hóa**: Cấu hình đẩy tag Github Actions tự động build APK và publish GitHub Release.
+- Tổng hợp toàn bộ đặc tả chi tiết của ứng dụng vào `specs.md` và tinh gọn các quy trình build thủ công vào file `release.md`.
+
+### v1.0.18 — Nút xóa Snapshot, Filter nâng cao & Fix UI
+- Triển khai Quản lý Cục bộ Backup Snapshot hiển thị theo list với các shortcut (Khôi phục) hay (Xóa).
+- Filter danh mục thu/chi phân biệt rõ ràng 2 nhánh khi tạo Category/Giao dịch.
+- Đồng bộ lại hệ thống màu UI Ngân sách tiệp với các chi tiết báo cáo giao dịch chi tiết.
+
+---
 
 ## 🛠 Công nghệ sử dụng
 - **Framework**: Flutter (Dart).
