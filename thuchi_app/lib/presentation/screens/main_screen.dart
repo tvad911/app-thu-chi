@@ -44,11 +44,16 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   Future<void> _checkUpdate() async {
     try {
       final updateInfo = await ref.read(checkForUpdateProvider.future);
-      if (updateInfo != null && updateInfo.hasUpdate && mounted) {
-        showDialog(
-          context: context,
-          barrierDismissible: false, // Optional: Force user to act? No, let them skip.
-          builder: (context) => AlertDialog(
+      // Skip if no update, or user already dismissed this version
+      if (updateInfo == null || !updateInfo.hasUpdate || updateInfo.isDismissed || !mounted) return;
+
+      bool dontRemind = false;
+
+      showDialog(
+        context: context,
+        barrierDismissible: true,
+        builder: (dialogContext) => StatefulBuilder(
+          builder: (context, setDialogState) => AlertDialog(
             title: const Text('Cập nhật mới'),
             content: Column(
               mainAxisSize: MainAxisSize.min,
@@ -60,24 +65,38 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                   const Text('Nội dung cập nhật:', style: TextStyle(fontWeight: FontWeight.bold)),
                   Text(updateInfo.releaseNotes),
                 ],
+                const SizedBox(height: 16),
+                CheckboxListTile(
+                  value: dontRemind,
+                  onChanged: (val) => setDialogState(() => dontRemind = val ?? false),
+                  title: const Text('Không nhắc lại bản này', style: TextStyle(fontSize: 13)),
+                  controlAffinity: ListTileControlAffinity.leading,
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                ),
               ],
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop(context),
+                onPressed: () {
+                  if (dontRemind) {
+                    ref.read(updateServiceProvider).dismissVersion(updateInfo.version);
+                  }
+                  Navigator.pop(dialogContext);
+                },
                 child: const Text('Để sau'),
               ),
               FilledButton(
                 onPressed: () {
-                  ref.read(updateServiceProvider).launchUpdateUrl(updateInfo.downloadUrl);
-                  Navigator.pop(context);
+                  Navigator.pop(dialogContext);
+                  ref.read(updateServiceProvider).launchReleasePage(updateInfo.releasePageUrl);
                 },
-                child: const Text('Cập nhật ngay'),
+                child: const Text('Xem cập nhật'),
               ),
             ],
           ),
-        );
-      }
+        ),
+      );
     } catch (e) {
       // Ignore update errors silently
     }

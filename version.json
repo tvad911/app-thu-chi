@@ -1,6 +1,6 @@
 {
-  "version": "1.0.26",
-  "build_number": 26,
+  "version": "1.0.27",
+  "build_number": 27,
   "download_url": "https://github.com/tvad911/app-thu-chi/releases/latest/download/app-release.apk",
-  "release_notes": "Sửa bug xóa khoản vay không hoàn trả số dư, thêm hiển thị tiền vay vào/cho vay ra trong báo cáo tháng."
+  "release_notes": "Cải thiện popup cập nhật: không hiện khi đã cập nhật, thêm checkbox 'Không nhắc lại', nút xem trang release trên GitHub."
 }
