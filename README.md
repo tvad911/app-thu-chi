@@ -63,6 +63,12 @@
 
 ## 📅 Lịch sử phiên bản (Changelog)
 
+### v1.0.27 — Cải thiện Popup Cập nhật
+- Tối ưu hóa hệ thống Popup báo cập nhật. Khách hàng giờ đây có tuỳ chọn "Không nhắc lại" cho phiên bản đó, mở link đến trang Github Release và sửa một số lỗi hiển thị vòng lặp vô tận.
+
+### v1.0.26 — Sửa lỗi Cân bằng số dư khoản vay
+- Khi xóa khoản Vay hoặc Cho Vay từ danh sách, toàn bộ giao dịch liên quan sẽ tự động hoàn trả lại số dư cho ví trước khi bị xóa hẳn khỏi ứng dụng. Bổ sung card vay vào/cho vay ra trong báo cáo tháng.
+
 ### v1.0.25 — Cải thiện Tiền tố Tên tệp Định kèm
 - Tinh chỉnh tên tệp đính kèm: Đặt mã Giao dịch (Transaction ID) lên đầu theo cấu trúc `tx_ID_Date_Time_Name.ext` giúp việc đối chiếu dữ liệu hình ảnh và giao dịch dễ dàng nhất có thể.
 
