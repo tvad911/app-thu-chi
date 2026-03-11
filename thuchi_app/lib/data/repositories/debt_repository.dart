@@ -151,11 +151,35 @@ class DebtRepository {
     return result;
   }
 
-  /// Delete debt and related transactions
+  /// Delete debt and related transactions, reverting all balance effects
   Future<void> deleteDebt(int id) async {
     final oldDebt = await getDebtById(id);
 
     await _db.transaction(() async {
+      // 1. Fetch all transactions linked to this debt
+      final transactions = await (_db.select(_db.transactions)
+            ..where((t) => t.debtId.equals(id)))
+          .get();
+
+      // 2. Revert balance for each transaction
+      for (final tx in transactions) {
+        if (tx.type == 'transfer') {
+          // Debt principal transfer: borrow = +amount, lend = -amount
+          // Revert means opposite sign
+          if (oldDebt != null) {
+            final revertDelta = oldDebt.type == 'borrow' ? -tx.amount : tx.amount;
+            await _accountRepo.updateBalance(tx.accountId, revertDelta);
+          }
+        } else if (tx.type == 'income') {
+          // Interest income from lending → revert by subtracting
+          await _accountRepo.updateBalance(tx.accountId, -tx.amount);
+        } else if (tx.type == 'expense') {
+          // Interest expense from borrowing → revert by adding back
+          await _accountRepo.updateBalance(tx.accountId, tx.amount);
+        }
+      }
+
+      // 3. Delete transactions and debt record
       await (_db.delete(_db.transactions)..where((t) => t.debtId.equals(id))).go();
       await (_db.delete(_db.debts)..where((d) => d.id.equals(id))).go();
 
@@ -164,7 +188,7 @@ class DebtRepository {
         entityId: id,
         action: 'DELETE',
         oldValue: oldDebt != null ? _debtToMap(oldDebt) : null,
-        description: 'Deleted debt: ${oldDebt?.person}',
+        description: 'Deleted debt: ${oldDebt?.person}, reverted ${transactions.length} transactions',
       );
     });
   }

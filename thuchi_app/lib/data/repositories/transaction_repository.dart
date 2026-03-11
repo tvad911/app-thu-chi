@@ -264,11 +264,12 @@ class TransactionRepository {
     ));
   }
 
-  /// Get monthly income/expense totals for a user
+  /// Get monthly income/expense totals for a user (includes debt flow)
   Future<Map<String, double>> getMonthlyTotals(int userId, DateTime month, {bool excludeEvents = false}) async {
     final startOfMonth = DateTime(month.year, month.month, 1);
     final endOfMonth = DateTime(month.year, month.month + 1, 0, 23, 59, 59);
 
+    // Query income/expense transactions
     final query = _db.select(_db.transactions)
           ..where((t) {
               var condition = t.userId.equals(userId) &
@@ -292,10 +293,37 @@ class TransactionRepository {
       }
     }
 
+    // Query debt-related transfer transactions for this month
+    final debtQuery = _db.select(_db.transactions).join([
+      innerJoin(_db.debts, _db.debts.id.equalsExp(_db.transactions.debtId)),
+    ])
+      ..where(
+        _db.transactions.userId.equals(userId) &
+        _db.transactions.date.isBiggerOrEqualValue(startOfMonth) &
+        _db.transactions.date.isSmallerOrEqualValue(endOfMonth) &
+        _db.transactions.type.equals('transfer') &
+        _db.transactions.debtId.isNotNull(),
+      );
+    final debtRows = await debtQuery.get();
+
+    double debtIn = 0;  // Money received from borrowing
+    double debtOut = 0; // Money lent out
+    for (final row in debtRows) {
+      final debt = row.readTable(_db.debts);
+      final tx = row.readTable(_db.transactions);
+      if (debt.type == 'borrow') {
+        debtIn += tx.amount;
+      } else {
+        debtOut += tx.amount;
+      }
+    }
+
     return {
       'income': totalIncome,
       'expense': totalExpense,
       'balance': totalIncome - totalExpense,
+      'debt_in': debtIn,
+      'debt_out': debtOut,
     };
   }
 

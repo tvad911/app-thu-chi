@@ -221,16 +221,37 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   }
 
   Widget _buildSummaryCards(Map<String, double> totals) {
+    final debtIn = totals['debt_in'] ?? 0;
+    final debtOut = totals['debt_out'] ?? 0;
+    final hasDebt = debtIn > 0 || debtOut > 0;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Row(
+      child: Column(
         children: [
-          _summaryCard('Thu nhập', totals['income'] ?? 0, Colors.green),
-          const SizedBox(width: 8),
-          _summaryCard('Chi tiêu', totals['expense'] ?? 0, Colors.red),
-          const SizedBox(width: 8),
-          _summaryCard('Cân đối', totals['balance'] ?? 0,
-              (totals['balance'] ?? 0) >= 0 ? Colors.blue : Colors.orange),
+          Row(
+            children: [
+              _summaryCard('Thu nhập', totals['income'] ?? 0, Colors.green),
+              const SizedBox(width: 8),
+              _summaryCard('Chi tiêu', totals['expense'] ?? 0, Colors.red),
+              const SizedBox(width: 8),
+              _summaryCard('Cân đối', totals['balance'] ?? 0,
+                  (totals['balance'] ?? 0) >= 0 ? Colors.blue : Colors.orange),
+            ],
+          ),
+          if (hasDebt) ...[
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                if (debtIn > 0) ...[
+                  _summaryCard('Vay vào', debtIn, Colors.amber.shade700),
+                  const SizedBox(width: 8),
+                ],
+                if (debtOut > 0)
+                  _summaryCard('Cho vay ra', debtOut, Colors.deepPurple),
+              ],
+            ),
+          ],
         ],
       ),
     );

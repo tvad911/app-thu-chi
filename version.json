@@ -1,6 +1,6 @@
 {
-  "version": "1.0.25",
-  "build_number": 25,
+  "version": "1.0.26",
+  "build_number": 26,
   "download_url": "https://github.com/tvad911/app-thu-chi/releases/latest/download/app-release.apk",
-  "release_notes": "Tinh chỉnh định dạng tên File đính kèm: Đặt mã Giao dịch (Transaction ID) lên đầu theo cấu trúc `tx_ID_Date_Time_Name.ext` giúp việc đối chiếu dữ liệu hình ảnh và giao dịch dễ dàng nhất có thể."
+  "release_notes": "Sửa bug xóa khoản vay không hoàn trả số dư, thêm hiển thị tiền vay vào/cho vay ra trong báo cáo tháng."
 }
